@@ -178,6 +178,32 @@ impl<T: Ord> BinaryArrayWeakHeap<T> {
     pub fn into_vec(self) -> Vec<T> {
         self.inner.values
     }
+
+    /// Iterates over the heap's values in internal heap order, not priority
+    /// order.
+    pub fn iter(&self) -> impl Iterator<Item = &T> {
+        self.inner.values.iter()
+    }
+}
+
+impl<T: Ord> IntoIterator for BinaryArrayWeakHeap<T> {
+    type Item = T;
+    type IntoIter = std::vec::IntoIter<T>;
+
+    /// Iterates over the heap's values in internal heap order, not priority
+    /// order.
+    fn into_iter(self) -> Self::IntoIter {
+        self.into_vec().into_iter()
+    }
+}
+
+impl<'a, T: Ord> IntoIterator for &'a BinaryArrayWeakHeap<T> {
+    type Item = &'a T;
+    type IntoIter = std::slice::Iter<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.inner.values.iter()
+    }
 }
 
 impl<T: Ord> Heap<T> for BinaryArrayWeakHeap<T> {
@@ -273,6 +299,15 @@ impl<T: Ord> BinaryArrayBulkInsertWeakHeap<T> {
         self.inner.values
     }
 
+    /// Iterates over the heap's values in internal heap order, not priority
+    /// order.
+    ///
+    /// Buffered values that have not yet been integrated are included, but
+    /// appear after the integrated values rather than in heap order.
+    pub fn iter(&self) -> impl Iterator<Item = &T> {
+        self.inner.values.iter().chain(self.insertion_buffer.iter())
+    }
+
     fn buffer_is_full(&self) -> bool {
         if self.insertion_buffer.len() >= INSERTION_BUFFER_CAPACITY {
             return true;
@@ -330,6 +365,26 @@ impl<T: Ord> BinaryArrayBulkInsertWeakHeap<T> {
             self.inner.fix_up(index);
         }
         self.insertion_buffer_min = 0;
+    }
+}
+
+impl<T: Ord> IntoIterator for BinaryArrayBulkInsertWeakHeap<T> {
+    type Item = T;
+    type IntoIter = std::vec::IntoIter<T>;
+
+    /// Iterates over the heap's values in internal heap order, not priority
+    /// order. Pending buffered values are integrated first.
+    fn into_iter(self) -> Self::IntoIter {
+        self.into_vec().into_iter()
+    }
+}
+
+impl<'a, T: Ord> IntoIterator for &'a BinaryArrayBulkInsertWeakHeap<T> {
+    type Item = &'a T;
+    type IntoIter = core::iter::Chain<std::slice::Iter<'a, T>, std::slice::Iter<'a, T>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.inner.values.iter().chain(self.insertion_buffer.iter())
     }
 }
 

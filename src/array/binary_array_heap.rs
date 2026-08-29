@@ -57,6 +57,12 @@ impl<T: Ord> BinaryArrayHeap<T> {
         self.values
     }
 
+    /// Iterates over the heap's values in internal heap order, not priority
+    /// order.
+    pub fn iter(&self) -> impl Iterator<Item = &T> {
+        self.values.iter()
+    }
+
     fn heapify(&mut self) {
         for index in (0..self.values.len() / 2).rev() {
             self.sift_down(index);
@@ -95,6 +101,26 @@ impl<T: Ord> BinaryArrayHeap<T> {
             self.values.swap(index, child);
             index = child;
         }
+    }
+}
+
+impl<T: Ord> IntoIterator for BinaryArrayHeap<T> {
+    type Item = T;
+    type IntoIter = std::vec::IntoIter<T>;
+
+    /// Iterates over the heap's values in internal heap order, not priority
+    /// order.
+    fn into_iter(self) -> Self::IntoIter {
+        self.into_vec().into_iter()
+    }
+}
+
+impl<'a, T: Ord> IntoIterator for &'a BinaryArrayHeap<T> {
+    type Item = &'a T;
+    type IntoIter = std::slice::Iter<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.values.iter()
     }
 }
 

@@ -98,6 +98,12 @@ impl<V> BinaryArrayIntegerValueHeap<V> {
         self.entries
     }
 
+    /// Iterates over the heap's entries in internal heap order, not priority
+    /// order.
+    pub fn iter(&self) -> impl Iterator<Item = &(i32, V)> {
+        self.entries.iter()
+    }
+
     fn heapify(&mut self) {
         for index in (0..self.entries.len() / 2).rev() {
             self.sift_down(index);
@@ -154,6 +160,26 @@ impl<V> Extend<(i32, V)> for BinaryArrayIntegerValueHeap<V> {
         for (key, value) in iter {
             self.push(key, value);
         }
+    }
+}
+
+impl<V> IntoIterator for BinaryArrayIntegerValueHeap<V> {
+    type Item = (i32, V);
+    type IntoIter = std::vec::IntoIter<(i32, V)>;
+
+    /// Iterates over the heap's entries in internal heap order, not priority
+    /// order.
+    fn into_iter(self) -> Self::IntoIter {
+        self.into_vec().into_iter()
+    }
+}
+
+impl<'a, V> IntoIterator for &'a BinaryArrayIntegerValueHeap<V> {
+    type Item = &'a (i32, V);
+    type IntoIter = std::slice::Iter<'a, (i32, V)>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.entries.iter()
     }
 }
 

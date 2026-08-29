@@ -88,6 +88,12 @@ impl<T: Ord> DaryArrayHeap<T> {
         self.values
     }
 
+    /// Iterates over the heap's values in internal heap order, not priority
+    /// order.
+    pub fn iter(&self) -> impl Iterator<Item = &T> {
+        self.values.iter()
+    }
+
     fn validate_degree(degree: usize) -> Result<(), InvalidDegree> {
         if degree < 2 {
             return Err(InvalidDegree(degree));
@@ -139,6 +145,26 @@ impl<T: Ord> DaryArrayHeap<T> {
             self.values.swap(index, smallest);
             index = smallest;
         }
+    }
+}
+
+impl<T: Ord> IntoIterator for DaryArrayHeap<T> {
+    type Item = T;
+    type IntoIter = std::vec::IntoIter<T>;
+
+    /// Iterates over the heap's values in internal heap order, not priority
+    /// order.
+    fn into_iter(self) -> Self::IntoIter {
+        self.into_vec().into_iter()
+    }
+}
+
+impl<'a, T: Ord> IntoIterator for &'a DaryArrayHeap<T> {
+    type Item = &'a T;
+    type IntoIter = std::slice::Iter<'a, T>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.values.iter()
     }
 }
 

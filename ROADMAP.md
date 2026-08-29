@@ -128,19 +128,6 @@ Tasks:
   construct.
 - Minimize public types that exist only to satisfy visibility rules.
 
-## Priority 3: Rust ecosystem integration
-
-### Evaluate iteration traits
-
-Array heaps currently use constructors such as `from_vec` and conversions such
-as `into_vec`. They implement `FromIterator` and `Extend`, but do not yet
-provide iteration over an existing heap.
-
-Tasks:
-
-- Evaluate consuming and borrowed `IntoIterator` implementations.
-- Document whether iteration follows priority order or internal heap order.
-
 ## Medium-priority JHeaps test-port follow-up
 
 The highest-risk behavioral gaps from the JHeaps suite are covered: d-ary
@@ -198,5 +185,4 @@ Every API migration should include:
 3. Design fallible heap traits and neutral shared error types.
 4. Consolidate insertion and entry method families.
 5. Seal reflected-heap implementation details.
-6. Decide whether to add consuming or borrowed heap iterators.
-7. Publish a migration guide and stabilize the resulting public API.
+6. Publish a migration guide and stabilize the resulting public API.

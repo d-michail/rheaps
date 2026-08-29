@@ -662,6 +662,52 @@ fn array_heaps_integrate_with_collection_traits() {
 }
 
 #[test]
+fn array_heaps_iterate_in_internal_heap_order() {
+    let values = vec![5, 3, 8, 1, 9, 2, 7];
+
+    let heap = BinaryArrayHeap::from_vec(values.clone());
+    let expected = heap.clone().into_vec();
+    assert_eq!(heap.iter().copied().collect::<Vec<_>>(), expected);
+    assert_eq!((&heap).into_iter().copied().collect::<Vec<_>>(), expected);
+    assert_eq!(heap.into_iter().collect::<Vec<_>>(), expected);
+
+    let heap = DaryArrayHeap::from_vec(3, values.clone()).unwrap();
+    let expected = heap.clone().into_vec();
+    assert_eq!(heap.iter().copied().collect::<Vec<_>>(), expected);
+    assert_eq!((&heap).into_iter().copied().collect::<Vec<_>>(), expected);
+    assert_eq!(heap.into_iter().collect::<Vec<_>>(), expected);
+
+    let heap = BinaryArrayWeakHeap::from_vec(values.clone());
+    let expected = heap.clone().into_vec();
+    assert_eq!(heap.iter().copied().collect::<Vec<_>>(), expected);
+    assert_eq!((&heap).into_iter().copied().collect::<Vec<_>>(), expected);
+    assert_eq!(heap.into_iter().collect::<Vec<_>>(), expected);
+
+    let heap = MinMaxBinaryArrayDoubleEndedHeap::from_vec(values.clone());
+    let expected = heap.clone().into_vec();
+    assert_eq!(heap.iter().copied().collect::<Vec<_>>(), expected);
+    assert_eq!((&heap).into_iter().copied().collect::<Vec<_>>(), expected);
+    assert_eq!(heap.into_iter().collect::<Vec<_>>(), expected);
+
+    let mut heap = BinaryArrayBulkInsertWeakHeap::from_vec(values.clone());
+    heap.push(4);
+    heap.push(6);
+    let expected: HashSet<_> = heap.iter().copied().collect();
+    assert_eq!(expected.len(), heap.len());
+    let borrowed: HashSet<_> = (&heap).into_iter().copied().collect();
+    assert_eq!(borrowed, expected);
+    let owned: HashSet<_> = heap.into_iter().collect();
+    assert_eq!(owned, expected);
+
+    let entries = vec![(3, "three"), (1, "one"), (2, "two")];
+    let heap = BinaryArrayIntegerValueHeap::from_vec(entries);
+    let expected = heap.clone().into_vec();
+    assert_eq!(heap.iter().cloned().collect::<Vec<_>>(), expected);
+    assert_eq!((&heap).into_iter().cloned().collect::<Vec<_>>(), expected);
+    assert_eq!(heap.into_iter().collect::<Vec<_>>(), expected);
+}
+
+#[test]
 fn alternate_ord_keys_preserve_array_heap_ordering() {
     exercise_reverse_min_heap(BinaryArrayHeap::new);
     exercise_reverse_min_heap(|| DaryArrayHeap::new(2).unwrap());
