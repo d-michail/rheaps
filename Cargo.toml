@@ -1,0 +1,12 @@
+[package]
+name = "rheaps"
+version = "0.1.0"
+edition = "2024"
+description = "Heap data structures for Rust"
+license = "Apache-2.0"
+repository = "https://github.com/d-michail/rheaps"
+keywords = ["heap", "priority-queue", "data-structures"]
+categories = ["data-structures"]
+
+[dependencies]
+num-bigint = "0.4"
