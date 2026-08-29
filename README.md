@@ -1,5 +1,8 @@
 # rheaps
 
+[![CI](https://github.com/d-michail/rheaps/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/d-michail/rheaps/actions/workflows/ci.yml)
+[![License](https://img.shields.io/github/license/d-michail/rheaps)](LICENSE)
+
 `rheaps` is a collection of heap and priority-queue data structures written in
 Rust. It is an idiomatic Rust port of the
 [JHeaps](https://github.com/d-michail/jheaps) library and includes array,
