@@ -496,14 +496,14 @@ where
             .key
             .take()
             .expect("free entry must own its key");
-        let minimum_inner = self.min_heap.push(
+        let minimum_inner = self.min_heap.insert(
             minimum_key,
             InnerRecord {
                 outer: minimum,
                 other: None,
             },
         );
-        let maximum_inner = self.max_heap.push(
+        let maximum_inner = self.max_heap.insert(
             Reverse(maximum_key),
             InnerRecord {
                 outer: maximum,
@@ -649,7 +649,7 @@ where
 {
     type Handle = ReflectedHandle;
 
-    fn push(&mut self, key: K, value: V) -> Self::Handle {
+    fn insert(&mut self, key: K, value: V) -> Self::Handle {
         Self::insert(self, key, value)
     }
 

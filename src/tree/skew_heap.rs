@@ -214,7 +214,7 @@ impl<K: Ord, V> SkewHeap<K, V> {
 impl<K: Ord, V> AddressableHeap<K, V> for SkewHeap<K, V> {
     type Handle = TreeHandle;
 
-    fn push(&mut self, key: K, value: V) -> Self::Handle {
+    fn insert(&mut self, key: K, value: V) -> Self::Handle {
         self.try_insert(key, value)
             .expect("a meld donor cannot accept new entries")
     }

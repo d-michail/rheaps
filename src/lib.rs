@@ -44,7 +44,7 @@ pub trait Heap<T> {
 /// entry so neither is lost to ownership.
 pub trait ValueHeap<K, V> {
     /// Inserts `key` and its associated `value`.
-    fn push(&mut self, key: K, value: V);
+    fn insert(&mut self, key: K, value: V);
 
     /// Returns the minimum key and its associated value, if present.
     fn peek(&self) -> Option<(&K, &V)>;
@@ -94,15 +94,16 @@ pub trait DoubleEndedAddressableHeap<K, V>: AddressableHeap<K, V> {
 
 /// A min-oriented heap whose entries are addressed by stable handles.
 ///
-/// A handle is an opaque capability returned from [`Self::push`]. Its validity
-/// is checked by every handle operation; it becomes invalid when the entry is
-/// removed or the heap is cleared. Handles cannot be used with another heap.
+/// A handle is an opaque capability returned from [`Self::insert`]. Its
+/// validity is checked by every handle operation; it becomes invalid when the
+/// entry is removed or the heap is cleared. Handles cannot be used with
+/// another heap.
 pub trait AddressableHeap<K, V> {
     /// Opaque type that identifies a live entry in this heap.
     type Handle: Copy + Eq;
 
     /// Inserts an entry and returns its handle.
-    fn push(&mut self, key: K, value: V) -> Self::Handle;
+    fn insert(&mut self, key: K, value: V) -> Self::Handle;
 
     /// Returns the handle, key, and value of a minimum entry, if present.
     fn peek(&self) -> Option<(Self::Handle, &K, &V)>;
@@ -206,7 +207,7 @@ macro_rules! impl_heap_via_addressable {
     ($ty:ident) => {
         impl<T: Ord> $crate::Heap<T> for $ty<T, ()> {
             fn push(&mut self, value: T) {
-                <Self as $crate::AddressableHeap<T, ()>>::push(self, value, ());
+                <Self as $crate::AddressableHeap<T, ()>>::insert(self, value, ());
             }
 
             fn peek(&self) -> Option<&T> {

@@ -25,7 +25,7 @@ fn assert_addressable_trait<H>(heap: &mut H)
 where
     H: AddressableHeap<i32, usize>,
 {
-    let handle = heap.push(2, 2);
+    let handle = heap.insert(2, 2);
     assert_eq!(heap.peek().map(|(_, key, _)| *key), Some(2));
     assert_eq!(heap.delete(handle), Ok((2, 2)));
 }

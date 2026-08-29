@@ -116,7 +116,7 @@ impl<K: Ord + Clone, V> BinaryTreeSoftAddressableHeap<K, V> {
 impl<K: Ord + Clone, V> AddressableHeap<K, V> for BinaryTreeSoftAddressableHeap<K, V> {
     type Handle = SoftHandle;
 
-    fn push(&mut self, key: K, value: V) -> Self::Handle {
+    fn insert(&mut self, key: K, value: V) -> Self::Handle {
         Self::insert(self, key, value)
     }
 

@@ -85,35 +85,6 @@ Tasks:
 
 ## Priority 2: Public API consolidation
 
-### Choose canonical insertion terminology
-
-Many heaps expose both `push` and `insert`; radix heaps expose `push`,
-`try_push`, `insert`, and `try_insert`. Several aliases exist only to match
-JHeaps terminology.
-
-Tasks:
-
-- Select one canonical insertion name for each common abstraction.
-- Reserve a `try_*` name for cases with a real fallible/infallible distinction.
-- Deprecate redundant aliases if compatibility must be maintained.
-- Use the canonical vocabulary consistently in examples and documentation.
-
-### Consolidate value-less and entry APIs
-
-Tree heaps use `V = ()` for value-less heaps while also exposing parallel
-method families such as `push`/`peek`/`pop` and
-`insert`/`peek_entry`/`pop_entry`. The crate root similarly separates `Heap`,
-`ValueHeap`, and `AddressableHeap` along lines inherited from JHeaps.
-
-Tasks:
-
-- Evaluate whether an entry-oriented abstraction or associated value type can
-  reduce duplication.
-- Keep value-less heaps ergonomic without requiring callers to mention `()`.
-- Avoid ordering `(K, V)` tuples by their values when only keys determine
-  priority.
-- Preserve ownership-friendly borrowed peeks and owned removals.
-
 ### Hide reflected-heap backend details
 
 `InnerRecord`, reflected backend marker types, and `ReflectedHeapBackend` are
@@ -183,6 +154,5 @@ Every API migration should include:
 1. Decide the pre-1.0 compatibility policy.
 2. Redesign meld ownership and remove poisoned donor states.
 3. Design fallible heap traits and neutral shared error types.
-4. Consolidate insertion and entry method families.
-5. Seal reflected-heap implementation details.
-6. Publish a migration guide and stabilize the resulting public API.
+4. Seal reflected-heap implementation details.
+5. Publish a migration guide and stabilize the resulting public API.

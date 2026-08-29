@@ -137,12 +137,12 @@ fall outside those bounds or violate monotonicity.
 use rheaps::monotone::U32RadixHeap;
 
 let mut heap = U32RadixHeap::new(0, 1_000).unwrap();
-heap.push(12).unwrap();
-heap.push(7).unwrap();
+heap.try_push(12).unwrap();
+heap.try_push(7).unwrap();
 assert_eq!(heap.pop(), Some(7));
 
 // After removing 7, keys below 7 are no longer valid.
-assert!(heap.push(6).is_err());
+assert!(heap.try_push(6).is_err());
 ```
 
 Floating-point radix heaps use `FiniteF64`, which provides a total order and
@@ -154,7 +154,7 @@ use rheaps::monotone::{F64RadixHeap, FiniteF64};
 let zero = FiniteF64::new(0.0).unwrap();
 let ten = FiniteF64::new(10.0).unwrap();
 let mut heap = F64RadixHeap::new(zero, ten).unwrap();
-heap.push(FiniteF64::new(2.5).unwrap()).unwrap();
+heap.try_push(FiniteF64::new(2.5).unwrap()).unwrap();
 assert_eq!(heap.pop().map(FiniteF64::into_inner), Some(2.5));
 ```
 

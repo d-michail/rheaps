@@ -656,7 +656,7 @@ impl<K: Ord, V> HollowHeap<K, V> {
 impl<K: Ord, V> AddressableHeap<K, V> for HollowHeap<K, V> {
     type Handle = HollowHandle;
 
-    fn push(&mut self, key: K, value: V) -> Self::Handle {
+    fn insert(&mut self, key: K, value: V) -> Self::Handle {
         Self::insert(self, key, value)
     }
 

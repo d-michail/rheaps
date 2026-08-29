@@ -476,7 +476,7 @@ impl<K: Ord, V> BinaryArrayAddressableHeap<K, V> {
 impl<K: Ord, V> AddressableHeap<K, V> for BinaryArrayAddressableHeap<K, V> {
     type Handle = AddressableHandle;
 
-    fn push(&mut self, key: K, value: V) -> Self::Handle {
+    fn insert(&mut self, key: K, value: V) -> Self::Handle {
         Self::insert(self, key, value)
     }
 
@@ -670,7 +670,7 @@ impl<K: Ord, V> DaryArrayAddressableHeap<K, V> {
 impl<K: Ord, V> AddressableHeap<K, V> for DaryArrayAddressableHeap<K, V> {
     type Handle = AddressableHandle;
 
-    fn push(&mut self, key: K, value: V) -> Self::Handle {
+    fn insert(&mut self, key: K, value: V) -> Self::Handle {
         Self::insert(self, key, value)
     }
 

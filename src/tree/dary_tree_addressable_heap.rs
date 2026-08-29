@@ -328,7 +328,7 @@ impl<K: Ord, V> DaryTreeAddressableHeap<K, V> {
 impl<K: Ord, V> AddressableHeap<K, V> for DaryTreeAddressableHeap<K, V> {
     type Handle = TreeHandle;
 
-    fn push(&mut self, key: K, value: V) -> Self::Handle {
+    fn insert(&mut self, key: K, value: V) -> Self::Handle {
         Self::insert(self, key, value)
     }
 

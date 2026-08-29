@@ -299,7 +299,7 @@ impl<K: Ord, V> RankPairingHeap<K, V> {
 impl<K: Ord, V> AddressableHeap<K, V> for RankPairingHeap<K, V> {
     type Handle = TreeHandle;
 
-    fn push(&mut self, key: K, value: V) -> Self::Handle {
+    fn insert(&mut self, key: K, value: V) -> Self::Handle {
         self.insert(key, value)
     }
 

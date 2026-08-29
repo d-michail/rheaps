@@ -214,7 +214,7 @@ where
 
     let mut handles = Vec::with_capacity(STRESS_SIZE as usize);
     for key in 0..STRESS_SIZE {
-        handles.push(heap.push(key, key as usize));
+        handles.push(heap.insert(key, key as usize));
         assert_eq!(addressable_min(&heap), Some(0));
         assert_eq!(heap.len(), (key + 1) as usize);
     }
@@ -227,12 +227,12 @@ where
 
     let mut heap = make();
     for key in (0..STRESS_SIZE).rev() {
-        heap.push(key, key as usize);
+        heap.insert(key, key as usize);
         assert_eq!(addressable_min(&heap), Some(key));
     }
     heap.clear();
     assert!(heap.is_empty());
-    let handle = heap.push(1, 1);
+    let handle = heap.insert(1, 1);
     *heap.value_mut(handle).unwrap() = 2;
     assert_eq!(heap.value(handle), Ok(&2));
     heap.decrease_key(handle, 1).unwrap();
@@ -242,7 +242,7 @@ where
 
     let mut heap = make();
     let handles = (0..128)
-        .map(|key| heap.push(key, key as usize))
+        .map(|key| heap.insert(key, key as usize))
         .collect::<Vec<_>>();
     let mut live = vec![true; handles.len()];
     for index in [5, 7, 0, 2, 1, 3, 9, 4, 8, 11, 6, 12, 10, 13, 14] {
@@ -257,7 +257,7 @@ where
 
     let mut heap = make();
     let handles = (0..STRESS_SIZE)
-        .map(|key| heap.push(key, key as usize))
+        .map(|key| heap.insert(key, key as usize))
         .collect::<Vec<_>>();
     for key in (0..STRESS_SIZE).rev() {
         assert_eq!(heap.delete(handles[key as usize]), Ok((key, key as usize)));
@@ -272,7 +272,7 @@ where
         let mut heap = make();
         for _ in 0..STRESS_SIZE {
             let key = random.next_i32();
-            heap.push(key, key as usize);
+            heap.insert(key, key as usize);
         }
         let mut previous = None;
         while let Some(peeked) = addressable_min(&heap) {
@@ -291,7 +291,7 @@ where
         let mut heap = make();
         for _ in 0..STRESS_SIZE {
             let key = random.next_i32_bound(bound) + offset;
-            heap.push(key, key as usize);
+            heap.insert(key, key as usize);
         }
         let mut result = Vec::with_capacity(STRESS_SIZE as usize);
         while let Some((key, value)) = heap.pop() {
@@ -308,7 +308,7 @@ where
     for index in 0..STRESS_SIZE {
         let key = 2 * index;
         current.push(key);
-        handles.push(heap.push(key, index as usize));
+        handles.push(heap.insert(key, index as usize));
     }
     let mut random = JavaRandom::new(1);
     for _ in 0..STRESS_SIZE / 2 {
@@ -337,7 +337,7 @@ fn exercise_integer_value_heap() {
     assert_eq!(heap.pop(), None);
 
     for key in 0..STRESS_SIZE {
-        heap.push(key, key);
+        heap.insert(key, key);
         assert_eq!(heap.peek(), Some((&0, &0)));
     }
     for key in 0..STRESS_SIZE {
@@ -348,7 +348,7 @@ fn exercise_integer_value_heap() {
 
     let mut heap = BinaryArrayIntegerValueHeap::new();
     for key in [i32::MAX, 5, i32::MIN, -1, i32::MIN, 5] {
-        heap.push(key, key);
+        heap.insert(key, key);
     }
     assert_eq!(
         core::iter::from_fn(|| heap.pop()).collect::<Vec<_>>(),
@@ -374,7 +374,7 @@ fn exercise_integer_value_heap() {
         let mut heap = BinaryArrayIntegerValueHeap::new();
         for _ in 0..STRESS_SIZE {
             let key = random.next_i32();
-            heap.push(key, key);
+            heap.insert(key, key);
         }
         let mut previous = None;
         while let Some((key, value)) = heap.pop() {
@@ -389,8 +389,8 @@ fn exercise_integer_value_heap() {
     }
 
     fn accepts_value_heap<H: ValueHeap<i32, i32>>(mut heap: H) {
-        heap.push(2, 2);
-        heap.push(1, 1);
+        heap.insert(2, 2);
+        heap.insert(1, 1);
         assert_eq!(heap.peek(), Some((&1, &1)));
         assert_eq!(heap.pop(), Some((1, 1)));
     }
@@ -426,7 +426,7 @@ where
     H: AddressableHeap<i32, i32, Handle = AddressableHandle>,
 {
     assert!(heap.is_empty());
-    let handle = heap.push(1, 1);
+    let handle = heap.insert(1, 1);
     assert_eq!(heap.key(handle), Ok(&1));
     assert_eq!(heap.pop(), Some((1, 1)));
 }
@@ -533,7 +533,7 @@ where
 {
     let mut heap = make();
     let handles = (0..STRESS_SIZE)
-        .map(|key| heap.push(ReverseKey(key), key as usize))
+        .map(|key| heap.insert(ReverseKey(key), key as usize))
         .collect::<Vec<_>>();
     assert_eq!(
         heap.peek().map(|(_, key, _)| *key),
@@ -553,7 +553,7 @@ where
         previous = Some(key.0);
     }
 
-    let stale = heap.push(ReverseKey(1), 1);
+    let stale = heap.insert(ReverseKey(1), 1);
     heap.clear();
     assert_eq!(heap.key(stale), Err(InvalidHandle::Stale));
 
@@ -562,7 +562,7 @@ where
         let mut heap = make();
         for _ in 0..STRESS_SIZE {
             let key = random.next_i32();
-            heap.push(ReverseKey(key), key as usize);
+            heap.insert(ReverseKey(key), key as usize);
         }
         let mut previous = i32::MAX;
         while let Some((ReverseKey(key), value)) = heap.pop() {
@@ -578,7 +578,7 @@ where
     for index in 0..STRESS_SIZE {
         let key = 2 * index;
         current.push(key);
-        handles.push(heap.push(ReverseKey(key), index as usize));
+        handles.push(heap.insert(ReverseKey(key), index as usize));
     }
     let mut random = JavaRandom::new(1);
     for _ in 0..STRESS_SIZE / 2 {

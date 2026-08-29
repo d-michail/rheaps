@@ -53,7 +53,7 @@ macro_rules! impl_value_fixture {
     ($heap:ty, $key:ty) => {
         impl ValueFixture<$key> for $heap {
             fn checked_push(&mut self, key: $key) -> Result<(), RadixHeapError> {
-                self.push(key)
+                self.try_push(key)
             }
 
             fn peek_key(&self) -> Option<&$key> {
@@ -128,7 +128,7 @@ macro_rules! impl_addressable_fixture {
                 key: $key,
                 value: usize,
             ) -> Result<RadixHandle, RadixHeapError> {
-                self.push(key, value)
+                self.try_push(key, value)
             }
 
             fn fixture_peek(&self) -> Option<(RadixHandle, &$key, &usize)> {
@@ -320,7 +320,7 @@ fn value_radix_heaps_cover_jheaps_regression_sequences() {
 
     let mut same = U32RadixHeap::new(15, 15).unwrap();
     for _ in 0..15 {
-        same.push(15).unwrap();
+        same.try_push(15).unwrap();
     }
     assert_eq!(
         (0..15).map(|_| same.pop()).collect::<Vec<_>>(),
@@ -328,9 +328,9 @@ fn value_radix_heaps_cover_jheaps_regression_sequences() {
     );
 
     let mut after_min = U64RadixHeap::new(0, 15).unwrap();
-    after_min.push(0).unwrap();
+    after_min.try_push(0).unwrap();
     assert_eq!(after_min.pop(), Some(0));
-    after_min.push(15).unwrap();
+    after_min.try_push(15).unwrap();
     assert_eq!(after_min.peek(), Some(&15));
 }
 
@@ -361,7 +361,7 @@ fn addressable_radix_heaps_cover_jheaps_regression_sequences() {
 
     let mut update = U64RadixAddressableHeap::new(0, u64::MAX).unwrap();
     for key in [0, 0, u64::MAX, u64::MAX, u64::MAX, u64::MAX] {
-        update.push(key, ()).unwrap();
+        update.try_push(key, ()).unwrap();
     }
     assert_eq!(update.pop().map(|entry| entry.0), Some(0));
     assert_eq!(update.pop().map(|entry| entry.0), Some(0));
@@ -369,10 +369,14 @@ fn addressable_radix_heaps_cover_jheaps_regression_sequences() {
 
     let mut regression =
         F64RadixAddressableHeap::new(finite(0.0), finite(3.667_944_409_236_726)).unwrap();
-    regression.push(finite(0.0), 0).unwrap();
-    regression.push(finite(0.916_986_102_309_181_5), 1).unwrap();
+    regression.try_push(finite(0.0), 0).unwrap();
+    regression
+        .try_push(finite(0.916_986_102_309_181_5), 1)
+        .unwrap();
     assert_eq!(regression.pop().map(|entry| entry.0), Some(finite(0.0)));
-    regression.push(finite(1.781_470_858_172_715_4), 2).unwrap();
+    regression
+        .try_push(finite(1.781_470_858_172_715_4), 2)
+        .unwrap();
     assert_eq!(
         regression.pop().map(|entry| entry.0),
         Some(finite(0.916_986_102_309_181_5))
@@ -387,9 +391,9 @@ macro_rules! exercise_addressable_handles {
     ($make:expr, $zero:expr, $five:expr, $ten:expr, $fifteen:expr, $twenty:expr, $thirty:expr) => {{
         let mut heap = $make;
         let mut foreign_heap = $make;
-        let foreign = foreign_heap.push($zero, 99).unwrap();
-        let first = heap.push($zero, 0).unwrap();
-        let second = heap.push($ten, 1).unwrap();
+        let foreign = foreign_heap.try_push($zero, 99).unwrap();
+        let first = heap.try_push($zero, 0).unwrap();
+        let second = heap.try_push($ten, 1).unwrap();
 
         assert_eq!(
             heap.decrease_key(second, $fifteen),
@@ -407,9 +411,9 @@ macro_rules! exercise_addressable_handles {
         assert_eq!(heap.delete(second), Ok(($five, 1)));
         assert_eq!(heap.key(second), Err(InvalidHandle::Stale));
 
-        heap.push($twenty, 2).unwrap();
+        heap.try_push($twenty, 2).unwrap();
         assert_eq!(heap.pop(), Some(($twenty, 2)));
-        let live = heap.push($thirty, 3).unwrap();
+        let live = heap.try_push($thirty, 3).unwrap();
         assert_eq!(
             heap.decrease_key(live, $fifteen),
             Err(RadixDecreaseKeyError::Radix(
@@ -469,27 +473,33 @@ fn heaps_report_range_and_monotonicity_errors() {
         Err(RadixHeapError::InvalidRange)
     ));
     let mut integer = U32RadixHeap::new(10, 20).unwrap();
-    assert_eq!(integer.push(9), Err(RadixHeapError::KeyOutOfRange));
-    integer.push(15).unwrap();
+    assert_eq!(integer.try_push(9), Err(RadixHeapError::KeyOutOfRange));
+    integer.try_push(15).unwrap();
     assert_eq!(integer.pop(), Some(15));
-    assert_eq!(integer.push(14), Err(RadixHeapError::MonotonicityViolation));
-    assert_eq!(integer.push(21), Err(RadixHeapError::KeyOutOfRange));
+    assert_eq!(
+        integer.try_push(14),
+        Err(RadixHeapError::MonotonicityViolation)
+    );
+    assert_eq!(integer.try_push(21), Err(RadixHeapError::KeyOutOfRange));
 
     assert!(matches!(
         U64RadixHeap::new(2, 1),
         Err(RadixHeapError::InvalidRange)
     ));
     let mut long = U64RadixHeap::new(0, 20).unwrap();
-    long.push(15).unwrap();
+    long.try_push(15).unwrap();
     assert_eq!(long.pop(), Some(15));
-    assert_eq!(long.push(14), Err(RadixHeapError::MonotonicityViolation));
+    assert_eq!(
+        long.try_push(14),
+        Err(RadixHeapError::MonotonicityViolation)
+    );
 
     let minimum = BigUint::from(10_u8);
     let mut big = BigUintRadixHeap::new(minimum.clone(), BigUint::from(20_u8)).unwrap();
-    big.push(BigUint::from(15_u8)).unwrap();
+    big.try_push(BigUint::from(15_u8)).unwrap();
     assert_eq!(big.pop(), Some(BigUint::from(15_u8)));
     assert_eq!(
-        big.push(BigUint::from(14_u8)),
+        big.try_push(BigUint::from(14_u8)),
         Err(RadixHeapError::MonotonicityViolation)
     );
     assert!(matches!(
@@ -509,24 +519,28 @@ fn double_heaps_use_total_order_and_reject_non_finite_keys() {
     ));
 
     let mut heap = F64RadixHeap::new(finite(-0.0), finite(0.0)).unwrap();
-    heap.push(finite(0.0)).unwrap();
-    heap.push(finite(-0.0)).unwrap();
+    heap.try_push(finite(0.0)).unwrap();
+    heap.try_push(finite(-0.0)).unwrap();
     assert_eq!(heap.pop().unwrap().as_f64().to_bits(), (-0.0_f64).to_bits());
     assert_eq!(heap.pop().unwrap().as_f64().to_bits(), 0.0_f64.to_bits());
 
     let mut values = F64RadixHeap::new(finite(0.0), finite(10.0)).unwrap();
-    values.push(finite(0.0)).unwrap();
+    values.try_push(finite(0.0)).unwrap();
     assert_eq!(values.pop(), Some(finite(0.0)));
     assert_eq!(
-        values.push(finite(-0.0)),
+        values.try_push(finite(-0.0)),
         Err(RadixHeapError::KeyOutOfRange)
     );
 
     let mut regression = F64RadixHeap::new(finite(0.0), finite(3.667_944_409_236_726)).unwrap();
-    regression.push(finite(0.0)).unwrap();
-    regression.push(finite(0.916_986_102_309_181_5)).unwrap();
+    regression.try_push(finite(0.0)).unwrap();
+    regression
+        .try_push(finite(0.916_986_102_309_181_5))
+        .unwrap();
     assert_eq!(regression.pop(), Some(finite(0.0)));
-    regression.push(finite(1.781_470_858_172_715_4)).unwrap();
+    regression
+        .try_push(finite(1.781_470_858_172_715_4))
+        .unwrap();
     assert_eq!(regression.pop(), Some(finite(0.916_986_102_309_181_5)));
     assert_eq!(regression.pop(), Some(finite(1.781_470_858_172_715_4)));
 }
@@ -538,7 +552,7 @@ fn common_heap_traits_remain_usable_for_valid_monotone_keys() {
     assert_eq!(Heap::pop(&mut values), Some(3));
 
     let mut entries = U32RadixAddressableHeap::new(0, 10).unwrap();
-    let handle = AddressableHeap::push(&mut entries, 3, "entry");
+    let handle = AddressableHeap::insert(&mut entries, 3, "entry");
     assert_eq!(AddressableHeap::key(&entries, handle), Ok(&3));
     assert_eq!(AddressableHeap::pop(&mut entries), Some((3, "entry")));
 }

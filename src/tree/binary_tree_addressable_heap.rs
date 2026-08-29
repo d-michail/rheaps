@@ -321,7 +321,7 @@ impl<K: Ord, V> BinaryTreeAddressableHeap<K, V> {
 impl<K: Ord, V> AddressableHeap<K, V> for BinaryTreeAddressableHeap<K, V> {
     type Handle = TreeHandle;
 
-    fn push(&mut self, key: K, value: V) -> Self::Handle {
+    fn insert(&mut self, key: K, value: V) -> Self::Handle {
         Self::insert(self, key, value)
     }
 

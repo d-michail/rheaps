@@ -93,7 +93,7 @@ where
 {
     let mut heap = make();
     let handles = (0..256)
-        .map(|key| heap.push(ReverseKey(key), key as usize))
+        .map(|key| heap.insert(ReverseKey(key), key as usize))
         .collect::<Vec<_>>();
     assert_eq!(heap.peek().map(|(_, key, _)| *key), Some(ReverseKey(255)));
     heap.decrease_key(handles[0], ReverseKey(256)).unwrap();
@@ -106,7 +106,7 @@ where
         assert!(previous >= key.0);
         previous = key.0;
     }
-    let stale = heap.push(ReverseKey(1), 1);
+    let stale = heap.insert(ReverseKey(1), 1);
     heap.clear();
     assert_eq!(heap.key(stale), Err(InvalidHandle::Stale));
 }
@@ -121,7 +121,7 @@ where
     let mut entries = Vec::<Option<(i32, H::Handle)>>::new();
     for value in 0..STRESS_SIZE as usize {
         let key = random.next_i32();
-        entries.push(Some((key, heap.push(ReverseKey(key), value))));
+        entries.push(Some((key, heap.insert(ReverseKey(key), value))));
     }
     for _ in 0..STRESS_SIZE {
         let index = (random.next_i32() as u32 as usize) % entries.len();
@@ -166,9 +166,9 @@ where
     H::Handle: Copy + Eq,
 {
     let mut heap = make();
-    let first = heap.push(ReverseKey(3), 0);
-    let second = heap.push(ReverseKey(1), 1);
-    let third = heap.push(ReverseKey(5), 2);
+    let first = heap.insert(ReverseKey(3), 0);
+    let second = heap.insert(ReverseKey(1), 1);
+    let third = heap.insert(ReverseKey(5), 2);
     assert_eq!(heap.peek().map(|(_, key, _)| key.0), Some(5));
     assert_eq!(heap.peek_max().map(|(_, key, _)| key.0), Some(1));
     heap.decrease_key(first, ReverseKey(6)).unwrap();
@@ -187,7 +187,7 @@ where
     let mut random = Random(9);
     for value in 3..STRESS_SIZE as usize {
         let key = random.next_i32();
-        entries.push(Some((key, heap.push(ReverseKey(key), value))));
+        entries.push(Some((key, heap.insert(ReverseKey(key), value))));
     }
     for _ in 0..STRESS_SIZE {
         let index = (random.next_i32() as u32 as usize) % entries.len();
@@ -248,14 +248,14 @@ where
     assert!(heap.pop().is_none());
 
     let handles = (0..256)
-        .map(|key| heap.push(key, key as usize))
+        .map(|key| heap.insert(key, key as usize))
         .collect::<Vec<_>>();
     for key in [17, 5, 255, 0, 73, 109, 1, 200] {
         assert_eq!(heap.delete(handles[key]), Ok((key as i32, key)));
         assert_eq!(heap.key(handles[key]), Err(InvalidHandle::Stale));
     }
 
-    let handle = heap.push(1_000, 1_000);
+    let handle = heap.insert(1_000, 1_000);
     let decreased = -1;
     heap.decrease_key(handle, decreased).unwrap();
     assert_eq!(heap.key(handle), Ok(&decreased));
@@ -276,16 +276,16 @@ where
     }
     assert_eq!(heap.key(handle), Err(InvalidHandle::Stale));
 
-    let stale = heap.push(4, 4);
+    let stale = heap.insert(4, 4);
     heap.clear();
     assert_eq!(heap.key(stale), Err(InvalidHandle::Stale));
     assert_eq!(heap.pop(), None);
-    let reused = heap.push(3, 3);
+    let reused = heap.insert(3, 3);
     assert_eq!(heap.pop(), Some((3, 3)));
     assert_eq!(heap.key(reused), Err(InvalidHandle::Stale));
 
     let mut foreign = make();
-    let foreign_handle = foreign.push(5, 5);
+    let foreign_handle = foreign.insert(5, 5);
     assert_eq!(heap.key(foreign_handle), Err(InvalidHandle::ForeignHeap));
     assert_eq!(
         heap.value_mut(foreign_handle),
@@ -308,7 +308,7 @@ where
 
     for value in 0..STRESS_SIZE as usize {
         let key = random.next_i32();
-        entries.push(Some((key, heap.push(key, value))));
+        entries.push(Some((key, heap.insert(key, value))));
     }
 
     for _ in 0..STRESS_SIZE {
@@ -364,7 +364,7 @@ where
     for value in 0..STRESS_SIZE {
         let key = random.next_i32();
         keys.push(key);
-        handles.push(heap.push(key, value as usize));
+        handles.push(heap.insert(key, value as usize));
     }
     for index in (0..STRESS_SIZE as usize).step_by(7) {
         let next = keys[index].saturating_sub(10);
@@ -448,7 +448,7 @@ fn exercise_strict_fibonacci_random_operations(operation_count: usize, seed: u64
                 tracked.live.insert(value, (key, handle));
             } else if choice < 80 {
                 let key = (random.next_i32() as u32 % key_bound as u32) as i32;
-                let handle = tracked.heap.push(key, next_value);
+                let handle = tracked.heap.insert(key, next_value);
                 tracked.live.insert(next_value, (key, handle));
                 next_value += 1;
             } else if !tracked.live.is_empty() {
@@ -476,9 +476,9 @@ where
     assert!(heap.pop().is_none());
     assert!(heap.pop_max().is_none());
 
-    let first = heap.push(3, 0);
-    let second = heap.push(1, 1);
-    let third = heap.push(5, 2);
+    let first = heap.insert(3, 0);
+    let second = heap.insert(1, 1);
+    let third = heap.insert(5, 2);
     assert_eq!(heap.peek().map(|(_, key, _)| *key), Some(1));
     assert_eq!(heap.peek_max().map(|(_, key, _)| *key), Some(5));
     let decreased = 0;
@@ -497,7 +497,7 @@ where
     assert_eq!(heap.key(first), Err(InvalidHandle::Stale));
 
     let mut foreign = make();
-    let foreign_handle = foreign.push(10, 10);
+    let foreign_handle = foreign.insert(10, 10);
     assert_eq!(
         heap.increase_key(foreign_handle, 11),
         Err(IncreaseKeyError::InvalidHandle(InvalidHandle::ForeignHeap))
@@ -507,7 +507,7 @@ where
     let mut random = Random(9);
     for value in 3..STRESS_SIZE as usize {
         let key = random.next_i32();
-        entries.push(Some((key, heap.push(key, value))));
+        entries.push(Some((key, heap.insert(key, value))));
     }
 
     for _ in 0..STRESS_SIZE {
@@ -556,11 +556,11 @@ macro_rules! exercise_meld {
         let mut first = $heap::<i32, usize>::new();
         let mut second = $heap::<i32, usize>::new();
         for value in 0..100 {
-            first.push(value * 2, value as usize);
+            first.insert(value * 2, value as usize);
         }
-        let donor_handle = second.push(201, 201);
+        let donor_handle = second.insert(201, 201);
         for value in 0..100 {
-            second.push(value * 2 + 1, value as usize);
+            second.insert(value * 2 + 1, value as usize);
         }
         first.meld(&mut second).unwrap();
         assert!(second.is_empty());
@@ -580,7 +580,7 @@ macro_rules! exercise_meld {
         let mut a = $heap::<i32, usize>::new();
         let mut b = $heap::<i32, usize>::new();
         let mut c = $heap::<i32, usize>::new();
-        let handle = c.push(10, 10);
+        let handle = c.insert(10, 10);
         b.meld(&mut c).unwrap();
         a.meld(&mut b).unwrap();
         a.decrease_key(handle, 0).unwrap();
@@ -595,10 +595,10 @@ macro_rules! exercise_meld {
             let mut receiver = $heap::<i32, usize>::new();
             let mut donor = $heap::<i32, usize>::new();
             for value in 0..receiver_len {
-                receiver.push(value * 2, value as usize);
+                receiver.insert(value * 2, value as usize);
             }
             for value in 0..donor_len {
-                donor.push(value * 2 + 1, value as usize);
+                donor.insert(value * 2 + 1, value as usize);
             }
             receiver.meld(&mut donor).unwrap();
             let mut previous = None;
@@ -615,12 +615,12 @@ macro_rules! exercise_meld {
 
         let mut reusable = $heap::<i32, usize>::new();
         let mut reusable_donor = $heap::<i32, usize>::new();
-        reusable_donor.push(1, 1);
+        reusable_donor.insert(1, 1);
         reusable.meld(&mut reusable_donor).unwrap();
-        reusable.push(0, 0);
+        reusable.insert(0, 0);
         assert_eq!(reusable.pop(), Some((0, 0)));
         reusable.clear();
-        reusable.push(2, 2);
+        reusable.insert(2, 2);
         assert_eq!(reusable.pop(), Some((2, 2)));
     }};
 }
@@ -1067,7 +1067,7 @@ fn advanced_tree_heaps_maintain_node_forest_invariants() {
             let mut heap = $heap::<i32, usize>::new();
             let handles = (0..128)
                 .rev()
-                .map(|key| heap.push(key, key as usize))
+                .map(|key| heap.insert(key, key as usize))
                 .collect::<Vec<_>>();
             heap.assert_invariants();
 
@@ -1082,7 +1082,7 @@ fn advanced_tree_heaps_maintain_node_forest_invariants() {
             }
 
             let mut donor = $heap::<i32, usize>::new();
-            let donor_handle = donor.push(-2_000, 999);
+            let donor_handle = donor.insert(-2_000, 999);
             heap.meld(&mut donor).unwrap();
             heap.assert_invariants();
             heap.decrease_key(donor_handle, -3_000).unwrap();

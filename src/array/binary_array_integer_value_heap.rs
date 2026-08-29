@@ -75,14 +75,9 @@ impl<V> BinaryArrayIntegerValueHeap<V> {
     }
 
     /// Inserts `key` and its associated `value`.
-    pub fn push(&mut self, key: i32, value: V) {
+    pub fn insert(&mut self, key: i32, value: V) {
         self.entries.push(Entry { key, value });
         self.sift_up(self.entries.len() - 1);
-    }
-
-    /// Alias for [`Self::push`], matching JHeaps terminology.
-    pub fn insert(&mut self, key: i32, value: V) {
-        self.push(key, value);
     }
 
     /// Returns the minimum key and its associated value.
@@ -200,7 +195,7 @@ impl<V> FromIterator<(i32, V)> for BinaryArrayIntegerValueHeap<V> {
 impl<V> Extend<(i32, V)> for BinaryArrayIntegerValueHeap<V> {
     fn extend<I: IntoIterator<Item = (i32, V)>>(&mut self, iter: I) {
         for (key, value) in iter {
-            self.push(key, value);
+            self.insert(key, value);
         }
     }
 }
@@ -226,8 +221,8 @@ impl<'a, V> IntoIterator for &'a BinaryArrayIntegerValueHeap<V> {
 }
 
 impl<V> ValueHeap<i32, V> for BinaryArrayIntegerValueHeap<V> {
-    fn push(&mut self, key: i32, value: V) {
-        Self::push(self, key, value);
+    fn insert(&mut self, key: i32, value: V) {
+        Self::insert(self, key, value);
     }
 
     fn peek(&self) -> Option<(&i32, &V)> {
