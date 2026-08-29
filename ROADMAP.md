@@ -83,22 +83,6 @@ Tasks:
 - Update documentation so errors describe capabilities rather than their
   original implementation family.
 
-## Priority 2: Public API consolidation
-
-### Hide reflected-heap backend details
-
-`InnerRecord`, reflected backend marker types, and `ReflectedHeapBackend` are
-public implementation details hidden from generated documentation because the
-generic `ReflectedHeap` exposes them in its bounds.
-
-Tasks:
-
-- Consider sealed backends, private implementation modules, or distinct public
-  concrete reflected heap types.
-- Keep `ReflectedFibonacciHeap` and `ReflectedPairingHeap` easy to name and
-  construct.
-- Minimize public types that exist only to satisfy visibility rules.
-
 ## Medium-priority JHeaps test-port follow-up
 
 The highest-risk behavioral gaps from the JHeaps suite are covered: d-ary
@@ -154,5 +138,4 @@ Every API migration should include:
 1. Decide the pre-1.0 compatibility policy.
 2. Redesign meld ownership and remove poisoned donor states.
 3. Design fallible heap traits and neutral shared error types.
-4. Seal reflected-heap implementation details.
-5. Publish a migration guide and stabilize the resulting public API.
+4. Publish a migration guide and stabilize the resulting public API.

@@ -34,10 +34,7 @@ pub use leftist_heap::LeftistHeap;
 pub use pairing_heap::PairingHeap;
 pub use pure_pairing_heap::PurePairingHeap;
 pub use rank_pairing_heap::RankPairingHeap;
-pub use reflected_heap::{
-    FibonacciReflectedBackend, PairingReflectedBackend, ReflectedFibonacciHeap, ReflectedHandle,
-    ReflectedHeap, ReflectedHeapBackend, ReflectedPairingHeap,
-};
+pub use reflected_heap::{ReflectedFibonacciHeap, ReflectedHandle, ReflectedPairingHeap};
 pub use simple_fibonacci_heap::SimpleFibonacciHeap;
 pub use skew_heap::SkewHeap;
 pub use soft_heap_core::{SoftHandle, SoftHeapError, SoftMeldError};

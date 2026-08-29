@@ -4,23 +4,26 @@ use std::collections::HashMap;
 
 use crate::array::{DecreaseKeyError, IncreaseKeyError, InvalidHandle};
 use crate::{
-    AddressableHeap, DoubleEndedAddressableHeap, DoubleEndedHeap, Heap, MeldableAddressableHeap,
-    MeldableDoubleEndedAddressableHeap, MeldableHeap,
+    AddressableHeap, DoubleEndedAddressableHeap, MeldableAddressableHeap,
+    MeldableDoubleEndedAddressableHeap,
 };
 
 use super::core::{MeldError, TreeHandle, next_domain_id};
 use super::{FibonacciHeap, PairingHeap};
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
-#[doc(hidden)]
-pub struct InnerRecord {
+struct InnerRecord {
     outer: ReflectedHandle,
     other: Option<TreeHandle>,
 }
 
-/// Selects the meldable tree heaps used by a [`ReflectedHeap`].
-#[doc(hidden)]
-pub trait ReflectedHeapBackend<K: Ord> {
+/// Selects the meldable tree heaps backing a reflected heap.
+///
+/// Not public: [`ReflectedFibonacciHeap`] and [`ReflectedPairingHeap`] are
+/// the only two instantiations, and they wrap [`ReflectedHeap`] behind a
+/// concrete, non-generic public type instead of exposing this backend
+/// parameter.
+trait ReflectedHeapBackend<K: Ord> {
     /// The min-oriented inner heap.
     type Min: AddressableHeap<K, InnerRecord, Handle = TreeHandle>;
     /// The max-oriented inner heap.
@@ -32,8 +35,7 @@ pub trait ReflectedHeapBackend<K: Ord> {
 
 /// Uses Fibonacci heaps in a reflected heap.
 #[derive(Clone, Copy, Debug, Default)]
-#[doc(hidden)]
-pub struct FibonacciReflectedBackend;
+struct FibonacciReflectedBackend;
 
 impl<K: Ord> ReflectedHeapBackend<K> for FibonacciReflectedBackend {
     type Min = FibonacciHeap<K, InnerRecord>;
@@ -46,8 +48,7 @@ impl<K: Ord> ReflectedHeapBackend<K> for FibonacciReflectedBackend {
 
 /// Uses pairing heaps in a reflected heap.
 #[derive(Clone, Copy, Debug, Default)]
-#[doc(hidden)]
-pub struct PairingReflectedBackend;
+struct PairingReflectedBackend;
 
 impl<K: Ord> ReflectedHeapBackend<K> for PairingReflectedBackend {
     type Min = PairingHeap<K, InnerRecord>;
@@ -129,13 +130,15 @@ impl<K, V> OuterArena<K, V> {
     }
 }
 
-/// A reflected, double-ended addressable heap.
+/// A reflected, double-ended addressable heap, generic over which meldable
+/// tree heap backs it.
 ///
 /// The implementation keeps each paired entry in either a min-oriented or a
 /// max-oriented meldable heap. One unpaired entry is retained when the number
-/// of elements is odd. [`ReflectedFibonacciHeap`] and
-/// [`ReflectedPairingHeap`] select the corresponding inner data structure.
-pub struct ReflectedHeap<K, V = (), B = FibonacciReflectedBackend>
+/// of elements is odd. Not public: [`ReflectedFibonacciHeap`] and
+/// [`ReflectedPairingHeap`] each wrap this type with a fixed backend instead
+/// of exposing the backend parameter.
+struct ReflectedHeap<K, V, B>
 where
     K: Ord,
     B: ReflectedHeapBackend<K>,
@@ -149,12 +152,6 @@ where
     arenas: HashMap<u64, OuterArena<K, V>>,
     backend: PhantomData<B>,
 }
-
-/// A reflected double-ended heap built from Fibonacci heaps.
-pub type ReflectedFibonacciHeap<K, V = ()> = ReflectedHeap<K, V, FibonacciReflectedBackend>;
-
-/// A reflected double-ended heap built from pairing heaps.
-pub type ReflectedPairingHeap<K, V = ()> = ReflectedHeap<K, V, PairingReflectedBackend>;
 
 impl<K: Ord, V, B> ReflectedHeap<K, V, B>
 where
@@ -643,143 +640,255 @@ where
     }
 }
 
-impl<K: Ord, V, B> AddressableHeap<K, V> for ReflectedHeap<K, V, B>
-where
-    B: ReflectedHeapBackend<K>,
-{
-    type Handle = ReflectedHandle;
+/// Defines a public, non-generic reflected heap type wrapping
+/// [`ReflectedHeap`] with a fixed backend, forwarding its entire API.
+///
+/// A concrete wrapper (rather than a `pub type` alias, or exposing
+/// [`ReflectedHeap`] and [`ReflectedHeapBackend`] directly) keeps the backend
+/// parameter and its associated marker types out of the public API and out of
+/// generated documentation.
+macro_rules! define_reflected_heap {
+    ($name:ident, $backend:ty, $doc:literal) => {
+        #[doc = $doc]
+        pub struct $name<K, V = ()>
+        where
+            K: Ord,
+        {
+            inner: ReflectedHeap<K, V, $backend>,
+        }
 
-    fn insert(&mut self, key: K, value: V) -> Self::Handle {
-        Self::insert(self, key, value)
-    }
+        impl<K: Ord, V> $name<K, V> {
+            /// Creates an empty heap.
+            #[must_use]
+            pub fn new() -> Self {
+                Self {
+                    inner: ReflectedHeap::new(),
+                }
+            }
 
-    fn peek(&self) -> Option<(Self::Handle, &K, &V)> {
-        Self::peek_entry(self)
-    }
+            /// Inserts an entry unless this heap was consumed as a meld donor.
+            pub fn try_insert(&mut self, key: K, value: V) -> Result<ReflectedHandle, MeldError> {
+                self.inner.try_insert(key, value)
+            }
 
-    fn pop(&mut self) -> Option<(K, V)> {
-        Self::pop_entry(self)
-    }
+            /// Inserts an entry and returns a checked handle.
+            pub fn insert(&mut self, key: K, value: V) -> ReflectedHandle {
+                self.inner.insert(key, value)
+            }
 
-    fn key(&self, handle: Self::Handle) -> Result<&K, InvalidHandle> {
-        Self::key(self, handle)
-    }
+            /// Returns the handle, key, and value of a minimum entry.
+            #[must_use]
+            pub fn peek_entry(&self) -> Option<(ReflectedHandle, &K, &V)> {
+                self.inner.peek_entry()
+            }
 
-    fn value(&self, handle: Self::Handle) -> Result<&V, InvalidHandle> {
-        Self::value(self, handle)
-    }
+            /// Returns the handle, key, and value of a maximum entry.
+            #[must_use]
+            pub fn peek_max_entry(&self) -> Option<(ReflectedHandle, &K, &V)> {
+                self.inner.peek_max_entry()
+            }
 
-    fn value_mut(&mut self, handle: Self::Handle) -> Result<&mut V, InvalidHandle> {
-        Self::value_mut(self, handle)
-    }
+            /// Removes and returns a minimum entry.
+            pub fn pop_entry(&mut self) -> Option<(K, V)> {
+                self.inner.pop_entry()
+            }
 
-    fn decrease_key(&mut self, handle: Self::Handle, key: K) -> Result<(), DecreaseKeyError> {
-        Self::decrease_key(self, handle, key)
-    }
+            /// Removes and returns a maximum entry.
+            pub fn pop_max_entry(&mut self) -> Option<(K, V)> {
+                self.inner.pop_max_entry()
+            }
 
-    fn delete(&mut self, handle: Self::Handle) -> Result<(K, V), InvalidHandle> {
-        Self::delete(self, handle)
-    }
+            /// Returns the key identified by `handle`.
+            pub fn key(&self, handle: ReflectedHandle) -> Result<&K, InvalidHandle> {
+                self.inner.key(handle)
+            }
 
-    fn len(&self) -> usize {
-        Self::len(self)
-    }
+            /// Returns the value identified by `handle`.
+            pub fn value(&self, handle: ReflectedHandle) -> Result<&V, InvalidHandle> {
+                self.inner.value(handle)
+            }
 
-    fn clear(&mut self) {
-        Self::clear(self);
-    }
+            /// Returns mutable access to the value identified by `handle`.
+            pub fn value_mut(&mut self, handle: ReflectedHandle) -> Result<&mut V, InvalidHandle> {
+                self.inner.value_mut(handle)
+            }
+
+            /// Decreases the key identified by `handle`.
+            pub fn decrease_key(
+                &mut self,
+                handle: ReflectedHandle,
+                key: K,
+            ) -> Result<(), DecreaseKeyError> {
+                self.inner.decrease_key(handle, key)
+            }
+
+            /// Increases the key identified by `handle`.
+            pub fn increase_key(
+                &mut self,
+                handle: ReflectedHandle,
+                key: K,
+            ) -> Result<(), IncreaseKeyError> {
+                self.inner.increase_key(handle, key)
+            }
+
+            /// Removes and returns the entry identified by `handle`.
+            pub fn delete(&mut self, handle: ReflectedHandle) -> Result<(K, V), InvalidHandle> {
+                self.inner.delete(handle)
+            }
+
+            /// Returns the number of live entries.
+            #[must_use]
+            pub fn len(&self) -> usize {
+                self.inner.len()
+            }
+
+            /// Returns whether this heap contains no entries.
+            #[must_use]
+            pub fn is_empty(&self) -> bool {
+                self.inner.is_empty()
+            }
+
+            /// Removes all entries and invalidates every outstanding handle.
+            pub fn clear(&mut self) {
+                self.inner.clear();
+            }
+
+            /// Melds `other` into this heap, consuming the donor on success.
+            pub fn meld(&mut self, other: &mut Self) -> Result<(), MeldError> {
+                self.inner.meld(&mut other.inner)
+            }
+        }
+
+        impl<K: Ord, V> Default for $name<K, V> {
+            fn default() -> Self {
+                Self::new()
+            }
+        }
+
+        impl<K: Ord> $name<K, ()> {
+            /// Inserts a key into this value-less heap.
+            pub fn push(&mut self, key: K) {
+                self.inner.push(key);
+            }
+
+            /// Returns a minimum key, if present.
+            #[must_use]
+            pub fn peek(&self) -> Option<&K> {
+                self.inner.peek()
+            }
+
+            /// Removes and returns a minimum key, if present.
+            pub fn pop(&mut self) -> Option<K> {
+                self.inner.pop()
+            }
+
+            /// Returns a maximum key, if present.
+            #[must_use]
+            pub fn peek_max(&self) -> Option<&K> {
+                self.inner.peek_max()
+            }
+
+            /// Removes and returns a maximum key, if present.
+            pub fn pop_max(&mut self) -> Option<K> {
+                self.inner.pop_max()
+            }
+        }
+
+        impl<K: Ord, V> AddressableHeap<K, V> for $name<K, V> {
+            type Handle = ReflectedHandle;
+
+            fn insert(&mut self, key: K, value: V) -> Self::Handle {
+                Self::insert(self, key, value)
+            }
+
+            fn peek(&self) -> Option<(Self::Handle, &K, &V)> {
+                Self::peek_entry(self)
+            }
+
+            fn pop(&mut self) -> Option<(K, V)> {
+                Self::pop_entry(self)
+            }
+
+            fn key(&self, handle: Self::Handle) -> Result<&K, InvalidHandle> {
+                Self::key(self, handle)
+            }
+
+            fn value(&self, handle: Self::Handle) -> Result<&V, InvalidHandle> {
+                Self::value(self, handle)
+            }
+
+            fn value_mut(&mut self, handle: Self::Handle) -> Result<&mut V, InvalidHandle> {
+                Self::value_mut(self, handle)
+            }
+
+            fn decrease_key(
+                &mut self,
+                handle: Self::Handle,
+                key: K,
+            ) -> Result<(), DecreaseKeyError> {
+                Self::decrease_key(self, handle, key)
+            }
+
+            fn delete(&mut self, handle: Self::Handle) -> Result<(K, V), InvalidHandle> {
+                Self::delete(self, handle)
+            }
+
+            fn len(&self) -> usize {
+                Self::len(self)
+            }
+
+            fn clear(&mut self) {
+                Self::clear(self);
+            }
+        }
+
+        impl<K: Ord, V> DoubleEndedAddressableHeap<K, V> for $name<K, V> {
+            fn peek_max(&self) -> Option<(Self::Handle, &K, &V)> {
+                Self::peek_max_entry(self)
+            }
+
+            fn pop_max(&mut self) -> Option<(K, V)> {
+                Self::pop_max_entry(self)
+            }
+
+            fn increase_key(
+                &mut self,
+                handle: Self::Handle,
+                key: K,
+            ) -> Result<(), IncreaseKeyError> {
+                Self::increase_key(self, handle, key)
+            }
+        }
+
+        impl<K: Ord, V> MeldableAddressableHeap<K, V> for $name<K, V> {
+            type MeldError = MeldError;
+
+            fn meld(&mut self, other: &mut Self) -> Result<(), Self::MeldError> {
+                Self::meld(self, other)
+            }
+        }
+
+        impl<K: Ord, V> MeldableDoubleEndedAddressableHeap<K, V> for $name<K, V> {
+            type MeldError = MeldError;
+
+            fn meld(&mut self, other: &mut Self) -> Result<(), Self::MeldError> {
+                Self::meld(self, other)
+            }
+        }
+
+        crate::impl_heap_via_addressable!($name);
+        crate::impl_meldable_heap_via_addressable!($name);
+        crate::impl_double_ended_heap_via_addressable!($name);
+    };
 }
 
-impl<K: Ord, V, B> DoubleEndedAddressableHeap<K, V> for ReflectedHeap<K, V, B>
-where
-    B: ReflectedHeapBackend<K>,
-{
-    fn peek_max(&self) -> Option<(Self::Handle, &K, &V)> {
-        Self::peek_max_entry(self)
-    }
-
-    fn pop_max(&mut self) -> Option<(K, V)> {
-        Self::pop_max_entry(self)
-    }
-
-    fn increase_key(&mut self, handle: Self::Handle, key: K) -> Result<(), IncreaseKeyError> {
-        Self::increase_key(self, handle, key)
-    }
-}
-
-impl<T: Ord, B> Heap<T> for ReflectedHeap<T, (), B>
-where
-    B: ReflectedHeapBackend<T>,
-{
-    fn push(&mut self, value: T) {
-        Self::push(self, value);
-    }
-
-    fn peek(&self) -> Option<&T> {
-        Self::peek(self)
-    }
-
-    fn pop(&mut self) -> Option<T> {
-        Self::pop(self)
-    }
-
-    fn len(&self) -> usize {
-        Self::len(self)
-    }
-
-    fn clear(&mut self) {
-        Self::clear(self);
-    }
-}
-
-impl<T: Ord, B> DoubleEndedHeap<T> for ReflectedHeap<T, (), B>
-where
-    B: ReflectedHeapBackend<T>,
-{
-    fn peek_max(&self) -> Option<&T> {
-        Self::peek_max(self)
-    }
-
-    fn pop_max(&mut self) -> Option<T> {
-        Self::pop_max(self)
-    }
-}
-
-impl<K: Ord, V, B> MeldableAddressableHeap<K, V> for ReflectedHeap<K, V, B>
-where
-    B: ReflectedHeapBackend<K>,
-    B::Min: MeldableAddressableHeap<K, InnerRecord, Handle = TreeHandle, MeldError = MeldError>,
-    B::Max: MeldableAddressableHeap<Reverse<K>, InnerRecord, Handle = TreeHandle, MeldError = MeldError>,
-{
-    type MeldError = MeldError;
-
-    fn meld(&mut self, other: &mut Self) -> Result<(), Self::MeldError> {
-        Self::meld(self, other)
-    }
-}
-
-impl<K: Ord, V, B> MeldableDoubleEndedAddressableHeap<K, V> for ReflectedHeap<K, V, B>
-where
-    B: ReflectedHeapBackend<K>,
-    B::Min: MeldableAddressableHeap<K, InnerRecord, Handle = TreeHandle, MeldError = MeldError>,
-    B::Max: MeldableAddressableHeap<Reverse<K>, InnerRecord, Handle = TreeHandle, MeldError = MeldError>,
-{
-    type MeldError = MeldError;
-
-    fn meld(&mut self, other: &mut Self) -> Result<(), Self::MeldError> {
-        Self::meld(self, other)
-    }
-}
-
-impl<T: Ord, B> MeldableHeap<T> for ReflectedHeap<T, (), B>
-where
-    B: ReflectedHeapBackend<T>,
-    B::Min: MeldableAddressableHeap<T, InnerRecord, Handle = TreeHandle, MeldError = MeldError>,
-    B::Max: MeldableAddressableHeap<Reverse<T>, InnerRecord, Handle = TreeHandle, MeldError = MeldError>,
-{
-    type MeldError = MeldError;
-
-    fn meld(&mut self, other: &mut Self) -> Result<(), Self::MeldError> {
-        Self::meld(self, other)
-    }
-}
+define_reflected_heap!(
+    ReflectedFibonacciHeap,
+    FibonacciReflectedBackend,
+    "A reflected double-ended heap built from Fibonacci heaps."
+);
+define_reflected_heap!(
+    ReflectedPairingHeap,
+    PairingReflectedBackend,
+    "A reflected double-ended heap built from pairing heaps."
+);

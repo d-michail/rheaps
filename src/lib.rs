@@ -246,6 +246,27 @@ macro_rules! impl_meldable_heap_via_addressable {
     };
 }
 
+/// Implements [`DoubleEndedHeap<T>`] for `$ty<T, ()>` by forwarding to its
+/// [`DoubleEndedAddressableHeap<T, ()>`] implementation. See
+/// [`impl_heap_via_addressable`] for why this is a macro rather than a
+/// blanket impl.
+#[macro_export]
+macro_rules! impl_double_ended_heap_via_addressable {
+    ($ty:ident) => {
+        impl<T: Ord> $crate::DoubleEndedHeap<T> for $ty<T, ()> {
+            fn peek_max(&self) -> Option<&T> {
+                <Self as $crate::DoubleEndedAddressableHeap<T, ()>>::peek_max(self)
+                    .map(|(_, key, _)| key)
+            }
+
+            fn pop_max(&mut self) -> Option<T> {
+                <Self as $crate::DoubleEndedAddressableHeap<T, ()>>::pop_max(self)
+                    .map(|(key, ())| key)
+            }
+        }
+    };
+}
+
 #[cfg(test)]
 pub(crate) mod test_support {
     use core::cmp::Ordering;
