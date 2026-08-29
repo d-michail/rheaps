@@ -635,6 +635,12 @@ fn jheaps_min_heap_behavior_all_array_implementations() {
 }
 
 #[test]
+fn addressable_array_heaps_gain_value_less_heap_trait() {
+    exercise_min_heap(BinaryArrayAddressableHeap::<i32, ()>::new);
+    exercise_min_heap(|| DaryArrayAddressableHeap::<i32, ()>::new(4).unwrap());
+}
+
+#[test]
 fn array_heaps_integrate_with_collection_traits() {
     assert_heap_collection_traits::<BinaryArrayHeap<i32>>();
     assert_heap_collection_traits::<DaryArrayHeap<i32>>();
@@ -702,8 +708,17 @@ fn array_heaps_iterate_in_internal_heap_order() {
     let entries = vec![(3, "three"), (1, "one"), (2, "two")];
     let heap = BinaryArrayIntegerValueHeap::from_vec(entries);
     let expected = heap.clone().into_vec();
-    assert_eq!(heap.iter().cloned().collect::<Vec<_>>(), expected);
-    assert_eq!((&heap).into_iter().cloned().collect::<Vec<_>>(), expected);
+    assert_eq!(
+        heap.iter().map(|(k, v)| (*k, *v)).collect::<Vec<_>>(),
+        expected
+    );
+    assert_eq!(
+        (&heap)
+            .into_iter()
+            .map(|(k, v)| (*k, *v))
+            .collect::<Vec<_>>(),
+        expected
+    );
     assert_eq!(heap.into_iter().collect::<Vec<_>>(), expected);
 }
 
@@ -901,8 +916,8 @@ fn jheaps_addressable_heapify_preserves_values_and_handles() {
 #[test]
 fn jheaps_addressable_handle_errors_and_reuse() {
     let mut heap = BinaryArrayAddressableHeap::new();
-    let first = heap.push(50, 1);
-    let second = heap.push(100, 2);
+    let first = heap.insert(50, 1);
+    let second = heap.insert(100, 2);
     assert_eq!(heap.pop(), Some((50, 1)));
     assert_eq!(heap.delete(first), Err(InvalidHandle::Stale));
     assert_eq!(
@@ -912,10 +927,10 @@ fn jheaps_addressable_handle_errors_and_reuse() {
     assert_eq!(heap.delete(second), Ok((100, 2)));
     assert_eq!(heap.delete(second), Err(InvalidHandle::Stale));
 
-    let retained = heap.push(10, 10);
+    let retained = heap.insert(10, 10);
     heap.clear();
     assert_eq!(heap.value(retained), Err(InvalidHandle::Stale));
-    let replacement = heap.push(10, 20);
+    let replacement = heap.insert(10, 20);
     assert_ne!(retained, replacement);
     assert_eq!(heap.value(replacement), Ok(&20));
 

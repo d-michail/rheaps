@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use crate::array::{DecreaseKeyError, InvalidHandle};
 use crate::tree::MeldError;
-use crate::{AddressableHeap, Heap, MeldableAddressableHeap, MeldableHeap};
+use crate::{AddressableHeap, MeldableAddressableHeap};
 
 static NEXT_DOMAIN_ID: AtomicU64 = AtomicU64::new(1);
 
@@ -697,37 +697,7 @@ impl<K: Ord, V> AddressableHeap<K, V> for HollowHeap<K, V> {
     }
 }
 
-impl<T: Ord> Heap<T> for HollowHeap<T, ()> {
-    fn push(&mut self, value: T) {
-        Self::push(self, value);
-    }
-
-    fn peek(&self) -> Option<&T> {
-        Self::peek(self)
-    }
-
-    fn pop(&mut self) -> Option<T> {
-        Self::pop(self)
-    }
-
-    fn len(&self) -> usize {
-        Self::len(self)
-    }
-
-    fn clear(&mut self) {
-        Self::clear(self);
-    }
-}
-
 impl<K: Ord, V> MeldableAddressableHeap<K, V> for HollowHeap<K, V> {
-    type MeldError = MeldError;
-
-    fn meld(&mut self, other: &mut Self) -> Result<(), Self::MeldError> {
-        Self::meld(self, other)
-    }
-}
-
-impl<T: Ord> MeldableHeap<T> for HollowHeap<T, ()> {
     type MeldError = MeldError;
 
     fn meld(&mut self, other: &mut Self) -> Result<(), Self::MeldError> {
@@ -743,3 +713,6 @@ fn next_domain_id() -> u64 {
         id
     }
 }
+
+crate::impl_heap_via_addressable!(HollowHeap);
+crate::impl_meldable_heap_via_addressable!(HollowHeap);

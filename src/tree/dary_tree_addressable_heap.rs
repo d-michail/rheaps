@@ -96,21 +96,16 @@ impl<K: Ord, V> DaryTreeAddressableHeap<K, V> {
         self.handle(entry)
     }
 
-    /// Alias for [`Self::insert`].
-    pub fn push(&mut self, key: K, value: V) -> TreeHandle {
-        self.insert(key, value)
-    }
-
     /// Returns the handle, key, and value of a minimum entry.
     #[must_use]
-    pub fn peek(&self) -> Option<(TreeHandle, &K, &V)> {
+    pub fn peek_entry(&self) -> Option<(TreeHandle, &K, &V)> {
         let position = self.positions.first()?;
         let entry = self.entry(position.entry);
         Some((self.handle(position.entry), &entry.key, &entry.value))
     }
 
     /// Removes and returns a minimum entry.
-    pub fn pop(&mut self) -> Option<(K, V)> {
+    pub fn pop_entry(&mut self) -> Option<(K, V)> {
         let len = self.positions.len();
         if len == 0 {
             return None;
@@ -334,15 +329,15 @@ impl<K: Ord, V> AddressableHeap<K, V> for DaryTreeAddressableHeap<K, V> {
     type Handle = TreeHandle;
 
     fn push(&mut self, key: K, value: V) -> Self::Handle {
-        Self::push(self, key, value)
+        Self::insert(self, key, value)
     }
 
     fn peek(&self) -> Option<(Self::Handle, &K, &V)> {
-        Self::peek(self)
+        Self::peek_entry(self)
     }
 
     fn pop(&mut self) -> Option<(K, V)> {
-        Self::pop(self)
+        Self::pop_entry(self)
     }
 
     fn key(&self, handle: Self::Handle) -> Result<&K, InvalidHandle> {
@@ -379,3 +374,23 @@ impl<K, V> Entry<K, V> {
         (self.key, self.value)
     }
 }
+
+impl<K: Ord> DaryTreeAddressableHeap<K, ()> {
+    /// Inserts a key into this value-less heap and returns a checked handle.
+    pub fn push(&mut self, key: K) -> TreeHandle {
+        self.insert(key, ())
+    }
+
+    /// Returns the minimum key, if present.
+    #[must_use]
+    pub fn peek(&self) -> Option<&K> {
+        self.peek_entry().map(|(_, key, _)| key)
+    }
+
+    /// Removes and returns the minimum key, if present.
+    pub fn pop(&mut self) -> Option<K> {
+        self.pop_entry().map(|(key, ())| key)
+    }
+}
+
+crate::impl_heap_via_addressable!(DaryTreeAddressableHeap);

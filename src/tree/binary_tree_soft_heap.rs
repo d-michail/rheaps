@@ -30,13 +30,13 @@ impl<K: Ord + Clone> BinaryTreeSoftHeap<K> {
     }
 
     /// Inserts a key unless this heap was consumed as a meld donor.
-    pub fn try_insert(&mut self, key: K) -> Result<(), SoftMeldError> {
+    pub fn try_push(&mut self, key: K) -> Result<(), SoftMeldError> {
         self.core.insert(key, ()).map(|_| ())
     }
 
     /// Inserts a key.
-    pub fn insert(&mut self, key: K) {
-        self.try_insert(key)
+    pub fn push(&mut self, key: K) {
+        self.try_push(key)
             .expect("a meld donor cannot accept new entries");
     }
 
@@ -88,7 +88,7 @@ impl<K: Ord + Clone> BinaryTreeSoftHeap<K> {
 
 impl<T: Ord + Clone> Heap<T> for BinaryTreeSoftHeap<T> {
     fn push(&mut self, value: T) {
-        self.insert(value);
+        Self::push(self, value);
     }
 
     fn peek(&self) -> Option<&T> {

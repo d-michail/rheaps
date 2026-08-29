@@ -12,7 +12,9 @@ pub use addressable_heap::{
     IncreaseKeyError, InvalidHandle,
 };
 pub use binary_array_heap::BinaryArrayHeap;
-pub use binary_array_integer_value_heap::BinaryArrayIntegerValueHeap;
+pub use binary_array_integer_value_heap::{
+    BinaryArrayIntegerValueHeap, Iter as IntegerValueHeapIter,
+};
 pub use binary_array_weak_heap::{BinaryArrayBulkInsertWeakHeap, BinaryArrayWeakHeap};
 pub use dary_array_heap::{DaryArrayHeap, InvalidDegree};
 pub use min_max_binary_array_double_ended_heap::MinMaxBinaryArrayDoubleEndedHeap;

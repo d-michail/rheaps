@@ -1,7 +1,7 @@
 use core::cmp::Ordering;
 
 use crate::array::{DecreaseKeyError, InvalidHandle};
-use crate::{AddressableHeap, Heap, MeldableAddressableHeap, MeldableHeap};
+use crate::{AddressableHeap, MeldableAddressableHeap};
 
 use super::core::{MeldError, NodeRef, TreeCore, TreeHandle};
 
@@ -334,28 +334,6 @@ impl<K: Ord, V> AddressableHeap<K, V> for FibonacciHeap<K, V> {
     }
 }
 
-impl<T: Ord> Heap<T> for FibonacciHeap<T, ()> {
-    fn push(&mut self, value: T) {
-        self.push(value);
-    }
-
-    fn peek(&self) -> Option<&T> {
-        self.peek()
-    }
-
-    fn pop(&mut self) -> Option<T> {
-        self.pop()
-    }
-
-    fn len(&self) -> usize {
-        self.len()
-    }
-
-    fn clear(&mut self) {
-        self.clear();
-    }
-}
-
 impl<K: Ord, V> MeldableAddressableHeap<K, V> for FibonacciHeap<K, V> {
     type MeldError = MeldError;
 
@@ -364,10 +342,5 @@ impl<K: Ord, V> MeldableAddressableHeap<K, V> for FibonacciHeap<K, V> {
     }
 }
 
-impl<T: Ord> MeldableHeap<T> for FibonacciHeap<T, ()> {
-    type MeldError = MeldError;
-
-    fn meld(&mut self, other: &mut Self) -> Result<(), Self::MeldError> {
-        self.meld(other)
-    }
-}
+crate::impl_heap_via_addressable!(FibonacciHeap);
+crate::impl_meldable_heap_via_addressable!(FibonacciHeap);

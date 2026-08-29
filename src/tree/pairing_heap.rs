@@ -1,7 +1,7 @@
 use core::cmp::Ordering;
 
 use crate::array::{DecreaseKeyError, InvalidHandle};
-use crate::{AddressableHeap, Heap, MeldableAddressableHeap, MeldableHeap};
+use crate::{AddressableHeap, MeldableAddressableHeap};
 
 use super::core::{MeldError, NodeRef, TreeCore, TreeHandle};
 
@@ -264,28 +264,6 @@ impl<K: Ord, V> AddressableHeap<K, V> for PairingHeap<K, V> {
     }
 }
 
-impl<T: Ord> Heap<T> for PairingHeap<T, ()> {
-    fn push(&mut self, value: T) {
-        Self::push(self, value);
-    }
-
-    fn peek(&self) -> Option<&T> {
-        Self::peek(self)
-    }
-
-    fn pop(&mut self) -> Option<T> {
-        Self::pop(self)
-    }
-
-    fn len(&self) -> usize {
-        Self::len(self)
-    }
-
-    fn clear(&mut self) {
-        Self::clear(self);
-    }
-}
-
 impl<K: Ord, V> MeldableAddressableHeap<K, V> for PairingHeap<K, V> {
     type MeldError = MeldError;
 
@@ -294,10 +272,5 @@ impl<K: Ord, V> MeldableAddressableHeap<K, V> for PairingHeap<K, V> {
     }
 }
 
-impl<T: Ord> MeldableHeap<T> for PairingHeap<T, ()> {
-    type MeldError = MeldError;
-
-    fn meld(&mut self, other: &mut Self) -> Result<(), Self::MeldError> {
-        Self::meld(self, other)
-    }
-}
+crate::impl_heap_via_addressable!(PairingHeap);
+crate::impl_meldable_heap_via_addressable!(PairingHeap);

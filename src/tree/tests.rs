@@ -653,7 +653,7 @@ fn soft_heaps_validate_error_rates_and_preserve_every_key() {
 
     let mut heap = BinaryTreeSoftHeap::new(0.5).unwrap();
     for key in (0..STRESS_SIZE).rev() {
-        heap.insert(key);
+        heap.push(key);
     }
     let mut keys = Vec::new();
     while let Some(key) = heap.pop() {
@@ -664,16 +664,16 @@ fn soft_heaps_validate_error_rates_and_preserve_every_key() {
 
     let mut receiver = BinaryTreeSoftHeap::new(0.5).unwrap();
     let mut donor = BinaryTreeSoftHeap::new(0.5).unwrap();
-    receiver.insert(2);
-    donor.insert(1);
+    receiver.push(2);
+    donor.push(1);
     receiver.meld(&mut donor).unwrap();
     assert_eq!(receiver.pop(), Some(1));
     assert_eq!(receiver.pop(), Some(2));
-    assert_eq!(donor.try_insert(3), Err(SoftMeldError::ReceiverConsumed));
+    assert_eq!(donor.try_push(3), Err(SoftMeldError::ReceiverConsumed));
 
     let mut alternate = BinaryTreeSoftHeap::new(0.5).unwrap();
     for key in 0..32 {
-        alternate.insert(ReverseKey(key));
+        alternate.push(ReverseKey(key));
     }
     for expected in (0..32).rev() {
         assert_eq!(alternate.pop(), Some(ReverseKey(expected)));
@@ -682,7 +682,7 @@ fn soft_heaps_validate_error_rates_and_preserve_every_key() {
     for error_rate in [0.01, 0.25, 0.5, 0.75, 0.99] {
         let mut heap = BinaryTreeSoftHeap::new(error_rate).unwrap();
         for key in 0..STRESS_SIZE {
-            heap.insert(key);
+            heap.push(key);
         }
         let mut removed = Vec::new();
         for _ in 0..STRESS_SIZE / 4 {
@@ -697,10 +697,10 @@ fn soft_heaps_validate_error_rates_and_preserve_every_key() {
         let mut small = BinaryTreeSoftHeap::new(error_rate).unwrap();
         let mut large = BinaryTreeSoftHeap::new(error_rate).unwrap();
         for key in 0..STRESS_SIZE / 3 {
-            small.insert(key);
+            small.push(key);
         }
         for key in STRESS_SIZE / 3..STRESS_SIZE {
-            large.insert(key);
+            large.push(key);
         }
         small.meld(&mut large).unwrap();
         assert_eq!(small.len(), STRESS_SIZE as usize);
@@ -861,6 +861,34 @@ fn tree_heaps_follow_common_heap_conformance() {
     exercise_heap(StrictFibonacciHeap::<i32>::new);
     exercise_heap(ReflectedFibonacciHeap::<i32>::new);
     exercise_heap(ReflectedPairingHeap::<i32>::new);
+}
+
+#[test]
+fn explicit_addressable_tree_heaps_gain_value_less_heap_trait() {
+    exercise_heap(BinaryTreeAddressableHeap::<i32>::new);
+    exercise_heap(|| DaryTreeAddressableHeap::<i32>::new(4).unwrap());
+}
+
+#[test]
+fn binary_tree_soft_addressable_heap_gains_value_less_push_peek_pop() {
+    fn accepts_heap<H: Heap<i32>>(heap: &mut H) {
+        heap.push(-1);
+        assert_eq!(heap.peek(), Some(&-1));
+    }
+
+    let mut heap = BinaryTreeSoftAddressableHeap::<i32, ()>::new(0.5).unwrap();
+    heap.push(5);
+    heap.push(3);
+    heap.push(8);
+    assert_eq!(heap.len(), 3);
+    let mut seen = Vec::new();
+    while let Some(key) = heap.pop() {
+        seen.push(key);
+    }
+    seen.sort_unstable();
+    assert_eq!(seen, vec![3, 5, 8]);
+
+    accepts_heap(&mut BinaryTreeSoftAddressableHeap::<i32, ()>::new(0.5).unwrap());
 }
 
 #[test]

@@ -98,8 +98,8 @@ use rheaps::AddressableHeap;
 use rheaps::array::BinaryArrayAddressableHeap;
 
 let mut heap = BinaryArrayAddressableHeap::new();
-let task = heap.push(10, "compile report");
-heap.push(5, "answer mail");
+let task = heap.insert(10, "compile report");
+heap.insert(5, "answer mail");
 
 heap.decrease_key(task, 1).unwrap();
 assert_eq!(

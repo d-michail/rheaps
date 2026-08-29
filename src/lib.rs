@@ -191,6 +191,60 @@ pub trait MeldableDoubleEndedAddressableHeap<K, V>: DoubleEndedAddressableHeap<K
     fn meld(&mut self, other: &mut Self) -> Result<(), Self::MeldError>;
 }
 
+/// Implements [`Heap<T>`] for `$ty<T, ()>` by forwarding to its
+/// [`AddressableHeap<T, ()>`] implementation.
+///
+/// A blanket impl over every `H: AddressableHeap<T, ()>` is not possible on
+/// stable Rust: it would conflict with the direct `Heap<T>` impls that
+/// non-addressable heaps (which never implement `AddressableHeap`) provide
+/// for themselves, since coherence checking cannot prove the two never
+/// overlap without specialization. This macro keeps the forwarding logic
+/// defined once while still emitting one concrete, non-overlapping impl per
+/// invocation.
+#[macro_export]
+macro_rules! impl_heap_via_addressable {
+    ($ty:ident) => {
+        impl<T: Ord> $crate::Heap<T> for $ty<T, ()> {
+            fn push(&mut self, value: T) {
+                <Self as $crate::AddressableHeap<T, ()>>::push(self, value, ());
+            }
+
+            fn peek(&self) -> Option<&T> {
+                <Self as $crate::AddressableHeap<T, ()>>::peek(self).map(|(_, key, _)| key)
+            }
+
+            fn pop(&mut self) -> Option<T> {
+                <Self as $crate::AddressableHeap<T, ()>>::pop(self).map(|(key, ())| key)
+            }
+
+            fn len(&self) -> usize {
+                $crate::AddressableHeap::len(self)
+            }
+
+            fn clear(&mut self) {
+                $crate::AddressableHeap::clear(self);
+            }
+        }
+    };
+}
+
+/// Implements [`MeldableHeap<T>`] for `$ty<T, ()>` by forwarding to its
+/// [`MeldableAddressableHeap<T, ()>`] implementation. See
+/// [`impl_heap_via_addressable`] for why this is a macro rather than a
+/// blanket impl.
+#[macro_export]
+macro_rules! impl_meldable_heap_via_addressable {
+    ($ty:ident) => {
+        impl<T: Ord> $crate::MeldableHeap<T> for $ty<T, ()> {
+            type MeldError = <Self as $crate::MeldableAddressableHeap<T, ()>>::MeldError;
+
+            fn meld(&mut self, other: &mut Self) -> Result<(), Self::MeldError> {
+                $crate::MeldableAddressableHeap::meld(self, other)
+            }
+        }
+    };
+}
+
 #[cfg(test)]
 pub(crate) mod test_support {
     use core::cmp::Ordering;

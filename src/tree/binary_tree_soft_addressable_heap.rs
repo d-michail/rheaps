@@ -1,5 +1,5 @@
 use crate::array::{DecreaseKeyError, InvalidHandle};
-use crate::{AddressableHeap, MeldableAddressableHeap};
+use crate::{AddressableHeap, Heap, MeldableAddressableHeap, MeldableHeap};
 
 use super::soft_heap_core::{SoftHandle, SoftHeapCore, SoftHeapError, SoftMeldError};
 
@@ -158,6 +158,54 @@ impl<K: Ord + Clone, V> AddressableHeap<K, V> for BinaryTreeSoftAddressableHeap<
 }
 
 impl<K: Ord + Clone, V> MeldableAddressableHeap<K, V> for BinaryTreeSoftAddressableHeap<K, V> {
+    type MeldError = SoftMeldError;
+
+    fn meld(&mut self, other: &mut Self) -> Result<(), Self::MeldError> {
+        Self::meld(self, other)
+    }
+}
+
+impl<K: Ord + Clone> BinaryTreeSoftAddressableHeap<K, ()> {
+    /// Inserts a key into this value-less heap and returns a checked handle.
+    pub fn push(&mut self, key: K) -> SoftHandle {
+        self.insert(key, ())
+    }
+
+    /// Returns the next key selected by the soft heap, if present.
+    #[must_use]
+    pub fn peek(&self) -> Option<&K> {
+        self.peek_entry().map(|(_, key, _)| key)
+    }
+
+    /// Removes and returns the next key selected by the soft heap.
+    pub fn pop(&mut self) -> Option<K> {
+        self.pop_entry().map(|(key, ())| key)
+    }
+}
+
+impl<T: Ord + Clone> Heap<T> for BinaryTreeSoftAddressableHeap<T, ()> {
+    fn push(&mut self, value: T) {
+        Self::push(self, value);
+    }
+
+    fn peek(&self) -> Option<&T> {
+        Self::peek(self)
+    }
+
+    fn pop(&mut self) -> Option<T> {
+        Self::pop(self)
+    }
+
+    fn len(&self) -> usize {
+        Self::len(self)
+    }
+
+    fn clear(&mut self) {
+        Self::clear(self);
+    }
+}
+
+impl<T: Ord + Clone> MeldableHeap<T> for BinaryTreeSoftAddressableHeap<T, ()> {
     type MeldError = SoftMeldError;
 
     fn meld(&mut self, other: &mut Self) -> Result<(), Self::MeldError> {

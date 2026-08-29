@@ -399,30 +399,25 @@ impl<K: Ord, V> FromIterator<(K, V)> for BinaryArrayAddressableHeap<K, V> {
 impl<K: Ord, V> Extend<(K, V)> for BinaryArrayAddressableHeap<K, V> {
     fn extend<I: IntoIterator<Item = (K, V)>>(&mut self, iter: I) {
         for (key, value) in iter {
-            self.push(key, value);
+            self.insert(key, value);
         }
     }
 }
 
 impl<K: Ord, V> BinaryArrayAddressableHeap<K, V> {
     /// Inserts an entry and returns a handle that addresses it while live.
-    pub fn push(&mut self, key: K, value: V) -> AddressableHandle {
-        self.inner.push(key, value, 2)
-    }
-
-    /// Alias for [`Self::push`], matching JHeaps terminology.
     pub fn insert(&mut self, key: K, value: V) -> AddressableHandle {
-        self.push(key, value)
+        self.inner.push(key, value, 2)
     }
 
     /// Returns the handle, key, and value of a minimum entry.
     #[must_use]
-    pub fn peek(&self) -> Option<(AddressableHandle, &K, &V)> {
+    pub fn peek_entry(&self) -> Option<(AddressableHandle, &K, &V)> {
         self.inner.peek()
     }
 
     /// Removes and returns a minimum key-value pair.
-    pub fn pop(&mut self) -> Option<(K, V)> {
+    pub fn pop_entry(&mut self) -> Option<(K, V)> {
         self.inner.pop(2)
     }
 
@@ -482,15 +477,15 @@ impl<K: Ord, V> AddressableHeap<K, V> for BinaryArrayAddressableHeap<K, V> {
     type Handle = AddressableHandle;
 
     fn push(&mut self, key: K, value: V) -> Self::Handle {
-        Self::push(self, key, value)
+        Self::insert(self, key, value)
     }
 
     fn peek(&self) -> Option<(Self::Handle, &K, &V)> {
-        Self::peek(self)
+        Self::peek_entry(self)
     }
 
     fn pop(&mut self) -> Option<(K, V)> {
-        Self::pop(self)
+        Self::pop_entry(self)
     }
 
     fn key(&self, handle: Self::Handle) -> Result<&K, InvalidHandle> {
@@ -521,6 +516,26 @@ impl<K: Ord, V> AddressableHeap<K, V> for BinaryArrayAddressableHeap<K, V> {
         Self::clear(self);
     }
 }
+
+impl<K: Ord> BinaryArrayAddressableHeap<K, ()> {
+    /// Inserts a key into this value-less heap and returns a checked handle.
+    pub fn push(&mut self, key: K) -> AddressableHandle {
+        self.insert(key, ())
+    }
+
+    /// Returns the minimum key, if present.
+    #[must_use]
+    pub fn peek(&self) -> Option<&K> {
+        self.peek_entry().map(|(_, key, _)| key)
+    }
+
+    /// Removes and returns the minimum key, if present.
+    pub fn pop(&mut self) -> Option<K> {
+        self.pop_entry().map(|(key, ())| key)
+    }
+}
+
+crate::impl_heap_via_addressable!(BinaryArrayAddressableHeap);
 
 /// An array-backed d-ary min-heap with stable, checked entry handles.
 ///
@@ -572,7 +587,7 @@ impl<K: Ord, V> FromIterator<(K, V)> for DaryArrayAddressableHeap<K, V> {
 impl<K: Ord, V> Extend<(K, V)> for DaryArrayAddressableHeap<K, V> {
     fn extend<I: IntoIterator<Item = (K, V)>>(&mut self, iter: I) {
         for (key, value) in iter {
-            self.push(key, value);
+            self.insert(key, value);
         }
     }
 }
@@ -585,23 +600,18 @@ impl<K: Ord, V> DaryArrayAddressableHeap<K, V> {
     }
 
     /// Inserts an entry and returns a handle that addresses it while live.
-    pub fn push(&mut self, key: K, value: V) -> AddressableHandle {
-        self.inner.push(key, value, self.degree)
-    }
-
-    /// Alias for [`Self::push`], matching JHeaps terminology.
     pub fn insert(&mut self, key: K, value: V) -> AddressableHandle {
-        self.push(key, value)
+        self.inner.push(key, value, self.degree)
     }
 
     /// Returns the handle, key, and value of a minimum entry.
     #[must_use]
-    pub fn peek(&self) -> Option<(AddressableHandle, &K, &V)> {
+    pub fn peek_entry(&self) -> Option<(AddressableHandle, &K, &V)> {
         self.inner.peek()
     }
 
     /// Removes and returns a minimum key-value pair.
-    pub fn pop(&mut self) -> Option<(K, V)> {
+    pub fn pop_entry(&mut self) -> Option<(K, V)> {
         self.inner.pop(self.degree)
     }
 
@@ -661,15 +671,15 @@ impl<K: Ord, V> AddressableHeap<K, V> for DaryArrayAddressableHeap<K, V> {
     type Handle = AddressableHandle;
 
     fn push(&mut self, key: K, value: V) -> Self::Handle {
-        Self::push(self, key, value)
+        Self::insert(self, key, value)
     }
 
     fn peek(&self) -> Option<(Self::Handle, &K, &V)> {
-        Self::peek(self)
+        Self::peek_entry(self)
     }
 
     fn pop(&mut self) -> Option<(K, V)> {
-        Self::pop(self)
+        Self::pop_entry(self)
     }
 
     fn key(&self, handle: Self::Handle) -> Result<&K, InvalidHandle> {
@@ -700,6 +710,26 @@ impl<K: Ord, V> AddressableHeap<K, V> for DaryArrayAddressableHeap<K, V> {
         Self::clear(self);
     }
 }
+
+impl<K: Ord> DaryArrayAddressableHeap<K, ()> {
+    /// Inserts a key into this value-less heap and returns a checked handle.
+    pub fn push(&mut self, key: K) -> AddressableHandle {
+        self.insert(key, ())
+    }
+
+    /// Returns the minimum key, if present.
+    #[must_use]
+    pub fn peek(&self) -> Option<&K> {
+        self.peek_entry().map(|(_, key, _)| key)
+    }
+
+    /// Removes and returns the minimum key, if present.
+    pub fn pop(&mut self) -> Option<K> {
+        self.pop_entry().map(|(key, ())| key)
+    }
+}
+
+crate::impl_heap_via_addressable!(DaryArrayAddressableHeap);
 
 fn validate_degree(degree: usize) -> Result<(), InvalidDegree> {
     if degree < 2 {
