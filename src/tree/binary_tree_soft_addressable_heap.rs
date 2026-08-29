@@ -60,9 +60,9 @@ impl<K: Ord + Clone, V> BinaryTreeSoftAddressableHeap<K, V> {
         self.core.value(handle)
     }
 
-    /// Replaces the value identified by `handle`.
-    pub fn set_value(&mut self, handle: SoftHandle, value: V) -> Result<(), InvalidHandle> {
-        self.core.set_value(handle, value)
+    /// Returns mutable access to the value identified by `handle`.
+    pub fn value_mut(&mut self, handle: SoftHandle) -> Result<&mut V, InvalidHandle> {
+        self.core.value_mut(handle)
     }
 
     /// Reports that binary-tree soft heaps do not support key decreases.
@@ -136,8 +136,8 @@ impl<K: Ord + Clone, V> AddressableHeap<K, V> for BinaryTreeSoftAddressableHeap<
         Self::value(self, handle)
     }
 
-    fn set_value(&mut self, handle: Self::Handle, value: V) -> Result<(), InvalidHandle> {
-        Self::set_value(self, handle, value)
+    fn value_mut(&mut self, handle: Self::Handle) -> Result<&mut V, InvalidHandle> {
+        Self::value_mut(self, handle)
     }
 
     fn decrease_key(&mut self, handle: Self::Handle, key: K) -> Result<(), DecreaseKeyError> {

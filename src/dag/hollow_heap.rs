@@ -253,11 +253,10 @@ impl<K: Ord, V> HollowHeap<K, V> {
         Ok(&self.item(item).value)
     }
 
-    /// Replaces the value associated with `handle`.
-    pub fn set_value(&mut self, handle: HollowHandle, value: V) -> Result<(), InvalidHandle> {
+    /// Returns mutable access to the value associated with `handle`.
+    pub fn value_mut(&mut self, handle: HollowHandle) -> Result<&mut V, InvalidHandle> {
         let item = self.validate(handle)?;
-        self.item_mut(item).value = value;
-        Ok(())
+        Ok(&mut self.item_mut(item).value)
     }
 
     /// Decreases an entry's key.
@@ -677,8 +676,8 @@ impl<K: Ord, V> AddressableHeap<K, V> for HollowHeap<K, V> {
         Self::value(self, handle)
     }
 
-    fn set_value(&mut self, handle: Self::Handle, value: V) -> Result<(), InvalidHandle> {
-        Self::set_value(self, handle, value)
+    fn value_mut(&mut self, handle: Self::Handle) -> Result<&mut V, InvalidHandle> {
+        Self::value_mut(self, handle)
     }
 
     fn decrease_key(&mut self, handle: Self::Handle, key: K) -> Result<(), DecreaseKeyError> {

@@ -263,7 +263,7 @@ where
         heap.decrease_key(handle, invalid),
         Err(DecreaseKeyError::NotDecreased)
     );
-    heap.set_value(handle, 7).unwrap();
+    *heap.value_mut(handle).unwrap() = 7;
     assert_eq!(heap.value(handle), Ok(&7));
 
     let mut previous = None;
@@ -287,7 +287,7 @@ where
     let foreign_handle = foreign.push(5, 5);
     assert_eq!(heap.key(foreign_handle), Err(InvalidHandle::ForeignHeap));
     assert_eq!(
-        heap.set_value(foreign_handle, 6),
+        heap.value_mut(foreign_handle),
         Err(InvalidHandle::ForeignHeap)
     );
     assert_eq!(
@@ -576,7 +576,7 @@ fn soft_addressable_heaps_enforce_handles_and_meld_rules() {
     let first = heap.insert(3, 3);
     let second = heap.insert(1, 1);
     let third = heap.insert(2, 2);
-    heap.set_value(second, 10).unwrap();
+    *heap.value_mut(second).unwrap() = 10;
     assert_eq!(heap.value(second), Ok(&10));
     assert_eq!(
         heap.decrease_key(second, 0),
@@ -584,6 +584,7 @@ fn soft_addressable_heaps_enforce_handles_and_meld_rules() {
     );
     assert_eq!(heap.delete(third), Ok((2, 2)));
     assert_eq!(heap.key(third), Err(InvalidHandle::Stale));
+    assert_eq!(heap.value_mut(third), Err(InvalidHandle::Stale));
     let mut seen = vec![heap.delete(first).unwrap().0, heap.pop_entry().unwrap().0];
     seen.sort_unstable();
     assert_eq!(seen, vec![1, 3]);
@@ -595,6 +596,10 @@ fn soft_addressable_heaps_enforce_handles_and_meld_rules() {
     receiver.meld(&mut donor).unwrap();
     assert_eq!(receiver.key(donor_handle), Ok(&4));
     assert_eq!(donor.key(donor_handle), Err(InvalidHandle::ForeignHeap));
+    assert_eq!(
+        donor.value_mut(donor_handle),
+        Err(InvalidHandle::ForeignHeap)
+    );
     assert_eq!(donor.try_insert(1, 1), Err(SoftMeldError::ReceiverConsumed));
     assert_eq!(receiver.delete(donor_handle), Ok((4, 4)));
 

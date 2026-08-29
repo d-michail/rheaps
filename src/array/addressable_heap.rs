@@ -217,10 +217,9 @@ impl<K: Ord, V> AddressableCore<K, V> {
         Ok(&self.entries[index].value)
     }
 
-    fn set_value(&mut self, handle: AddressableHandle, value: V) -> Result<(), InvalidHandle> {
+    fn value_mut(&mut self, handle: AddressableHandle) -> Result<&mut V, InvalidHandle> {
         let index = self.validate(handle)?;
-        self.entries[index].value = value;
-        Ok(())
+        Ok(&mut self.entries[index].value)
     }
 
     fn decrease_key(
@@ -423,9 +422,9 @@ impl<K: Ord, V> BinaryArrayAddressableHeap<K, V> {
         self.inner.value(handle)
     }
 
-    /// Replaces the value associated with `handle`.
-    pub fn set_value(&mut self, handle: AddressableHandle, value: V) -> Result<(), InvalidHandle> {
-        self.inner.set_value(handle, value)
+    /// Returns mutable access to the value associated with `handle`.
+    pub fn value_mut(&mut self, handle: AddressableHandle) -> Result<&mut V, InvalidHandle> {
+        self.inner.value_mut(handle)
     }
 
     /// Decreases an entry's key and restores heap order.
@@ -488,8 +487,8 @@ impl<K: Ord, V> AddressableHeap<K, V> for BinaryArrayAddressableHeap<K, V> {
         Self::value(self, handle)
     }
 
-    fn set_value(&mut self, handle: Self::Handle, value: V) -> Result<(), InvalidHandle> {
-        Self::set_value(self, handle, value)
+    fn value_mut(&mut self, handle: Self::Handle) -> Result<&mut V, InvalidHandle> {
+        Self::value_mut(self, handle)
     }
 
     fn decrease_key(&mut self, handle: Self::Handle, key: K) -> Result<(), DecreaseKeyError> {
@@ -587,9 +586,9 @@ impl<K: Ord, V> DaryArrayAddressableHeap<K, V> {
         self.inner.value(handle)
     }
 
-    /// Replaces the value associated with `handle`.
-    pub fn set_value(&mut self, handle: AddressableHandle, value: V) -> Result<(), InvalidHandle> {
-        self.inner.set_value(handle, value)
+    /// Returns mutable access to the value associated with `handle`.
+    pub fn value_mut(&mut self, handle: AddressableHandle) -> Result<&mut V, InvalidHandle> {
+        self.inner.value_mut(handle)
     }
 
     /// Decreases an entry's key and restores heap order.
@@ -652,8 +651,8 @@ impl<K: Ord, V> AddressableHeap<K, V> for DaryArrayAddressableHeap<K, V> {
         Self::value(self, handle)
     }
 
-    fn set_value(&mut self, handle: Self::Handle, value: V) -> Result<(), InvalidHandle> {
-        Self::set_value(self, handle, value)
+    fn value_mut(&mut self, handle: Self::Handle) -> Result<&mut V, InvalidHandle> {
+        Self::value_mut(self, handle)
     }
 
     fn decrease_key(&mut self, handle: Self::Handle, key: K) -> Result<(), DecreaseKeyError> {

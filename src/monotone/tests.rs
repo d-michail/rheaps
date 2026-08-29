@@ -302,12 +302,14 @@ macro_rules! exercise_addressable_handles {
             Err(RadixDecreaseKeyError::NotDecreased)
         );
         heap.decrease_key(second, $five).unwrap();
-        heap.set_value(first, 42).unwrap();
+        *heap.value_mut(first).unwrap() = 42;
         assert_eq!(heap.value(first), Ok(&42));
         assert_eq!(heap.key(foreign), Err(InvalidHandle::ForeignHeap));
+        assert_eq!(heap.value_mut(foreign), Err(InvalidHandle::ForeignHeap));
 
         assert_eq!(heap.pop(), Some(($zero, 42)));
         assert_eq!(heap.key(first), Err(InvalidHandle::Stale));
+        assert_eq!(heap.value_mut(first), Err(InvalidHandle::Stale));
         assert_eq!(heap.delete(second), Ok(($five, 1)));
         assert_eq!(heap.key(second), Err(InvalidHandle::Stale));
 
@@ -322,6 +324,7 @@ macro_rules! exercise_addressable_handles {
         );
         heap.clear();
         assert_eq!(heap.key(live), Err(InvalidHandle::Stale));
+        assert_eq!(heap.value_mut(live), Err(InvalidHandle::Stale));
     }};
 }
 

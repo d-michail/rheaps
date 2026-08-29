@@ -251,10 +251,10 @@ where
         Ok(&self.outer(self.validate(handle)?).value)
     }
 
-    /// Replaces the value identified by `handle`.
-    pub fn set_value(&mut self, handle: ReflectedHandle, value: V) -> Result<(), InvalidHandle> {
-        self.outer_mut(self.validate(handle)?).value = value;
-        Ok(())
+    /// Returns mutable access to the value identified by `handle`.
+    pub fn value_mut(&mut self, handle: ReflectedHandle) -> Result<&mut V, InvalidHandle> {
+        let outer = self.validate(handle)?;
+        Ok(&mut self.outer_mut(outer).value)
     }
 
     /// Decreases the key identified by `handle`.
@@ -510,15 +510,13 @@ where
                 other: Some(minimum_inner),
             },
         );
-        self.min_heap
-            .set_value(
-                minimum_inner,
-                InnerRecord {
-                    outer: minimum,
-                    other: Some(maximum_inner),
-                },
-            )
-            .expect("new minimum inner handle must be live");
+        *self
+            .min_heap
+            .value_mut(minimum_inner)
+            .expect("new minimum inner handle must be live") = InnerRecord {
+            outer: minimum,
+            other: Some(maximum_inner),
+        };
         self.outer_mut(minimum).location = Some(Location::Min(minimum_inner));
         self.outer_mut(maximum).location = Some(Location::Max(maximum_inner));
     }
@@ -671,8 +669,8 @@ where
         Self::value(self, handle)
     }
 
-    fn set_value(&mut self, handle: Self::Handle, value: V) -> Result<(), InvalidHandle> {
-        Self::set_value(self, handle, value)
+    fn value_mut(&mut self, handle: Self::Handle) -> Result<&mut V, InvalidHandle> {
+        Self::value_mut(self, handle)
     }
 
     fn decrease_key(&mut self, handle: Self::Handle, key: K) -> Result<(), DecreaseKeyError> {

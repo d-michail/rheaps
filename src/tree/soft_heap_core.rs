@@ -345,10 +345,9 @@ impl<K: Ord + Clone, V> SoftHeapCore<K, V> {
         Ok(&self.item(self.validate(handle)?).value)
     }
 
-    pub(crate) fn set_value(&mut self, handle: SoftHandle, value: V) -> Result<(), InvalidHandle> {
+    pub(crate) fn value_mut(&mut self, handle: SoftHandle) -> Result<&mut V, InvalidHandle> {
         let item = self.validate(handle)?;
-        self.item_mut(item).value = value;
-        Ok(())
+        Ok(&mut self.item_mut(item).value)
     }
 
     pub(crate) fn delete(&mut self, handle: SoftHandle) -> Result<Item<K, V>, InvalidHandle> {

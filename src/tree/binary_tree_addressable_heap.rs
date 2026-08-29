@@ -121,11 +121,10 @@ impl<K: Ord, V> BinaryTreeAddressableHeap<K, V> {
         Ok(&self.entry(self.validate(handle)?).value)
     }
 
-    /// Replaces the value associated with `handle`.
-    pub fn set_value(&mut self, handle: TreeHandle, value: V) -> Result<(), InvalidHandle> {
+    /// Returns mutable access to the value associated with `handle`.
+    pub fn value_mut(&mut self, handle: TreeHandle) -> Result<&mut V, InvalidHandle> {
         let entry = self.validate(handle)?;
-        self.entry_mut(entry).value = value;
-        Ok(())
+        Ok(&mut self.entry_mut(entry).value)
     }
 
     /// Decreases an entry's key and restores heap order.
@@ -347,8 +346,8 @@ impl<K: Ord, V> AddressableHeap<K, V> for BinaryTreeAddressableHeap<K, V> {
         Self::value(self, handle)
     }
 
-    fn set_value(&mut self, handle: Self::Handle, value: V) -> Result<(), InvalidHandle> {
-        Self::set_value(self, handle, value)
+    fn value_mut(&mut self, handle: Self::Handle) -> Result<&mut V, InvalidHandle> {
+        Self::value_mut(self, handle)
     }
 
     fn decrease_key(&mut self, handle: Self::Handle, key: K) -> Result<(), DecreaseKeyError> {

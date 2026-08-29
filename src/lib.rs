@@ -124,12 +124,12 @@ pub trait AddressableHeap<K, V> {
     /// Returns an error if `handle` is stale or belongs to another heap.
     fn value(&self, handle: Self::Handle) -> Result<&V, array::InvalidHandle>;
 
-    /// Replaces the value identified by `handle`.
+    /// Returns mutable access to the value identified by `handle`.
     ///
     /// # Errors
     ///
     /// Returns an error if `handle` is stale or belongs to another heap.
-    fn set_value(&mut self, handle: Self::Handle, value: V) -> Result<(), array::InvalidHandle>;
+    fn value_mut(&mut self, handle: Self::Handle) -> Result<&mut V, array::InvalidHandle>;
 
     /// Decreases the key identified by `handle`.
     ///

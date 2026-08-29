@@ -519,14 +519,13 @@ impl<K: RadixKey, V> AddressableRadixHeapCore<K, V> {
             .value)
     }
 
-    fn set_value(&mut self, handle: RadixHandle, value: V) -> Result<(), InvalidHandle> {
+    fn value_mut(&mut self, handle: RadixHandle) -> Result<&mut V, InvalidHandle> {
         let slot = self.validate(handle)?;
-        self.slots[slot]
+        Ok(&mut self.slots[slot]
             .entry
             .as_mut()
             .expect("validated entry")
-            .value = value;
-        Ok(())
+            .value)
     }
 
     fn remove_from_bucket(&mut self, slot: usize) {
@@ -955,13 +954,9 @@ macro_rules! define_addressable_radix_heap {
                 self.core.value(handle)
             }
 
-            /// Replaces the value addressed by `handle`.
-            pub fn set_value(
-                &mut self,
-                handle: RadixHandle,
-                value: V,
-            ) -> Result<(), InvalidHandle> {
-                self.core.set_value(handle, value)
+            /// Returns mutable access to the value addressed by `handle`.
+            pub fn value_mut(&mut self, handle: RadixHandle) -> Result<&mut V, InvalidHandle> {
+                self.core.value_mut(handle)
             }
 
             /// Decreases an entry's key while preserving the monotonicity
@@ -1031,8 +1026,8 @@ macro_rules! define_addressable_radix_heap {
                 Self::value(self, handle)
             }
 
-            fn set_value(&mut self, handle: Self::Handle, value: V) -> Result<(), InvalidHandle> {
-                Self::set_value(self, handle, value)
+            fn value_mut(&mut self, handle: Self::Handle) -> Result<&mut V, InvalidHandle> {
+                Self::value_mut(self, handle)
             }
 
             fn decrease_key(

@@ -81,9 +81,9 @@ impl<K: Ord, V> StrictFibonacciHeap<K, V> {
         self.core.value(handle)
     }
 
-    /// Replaces the value associated with `handle`.
-    pub fn set_value(&mut self, handle: TreeHandle, value: V) -> Result<(), InvalidHandle> {
-        self.core.set_value(handle, value)
+    /// Returns mutable access to the value associated with `handle`.
+    pub fn value_mut(&mut self, handle: TreeHandle) -> Result<&mut V, InvalidHandle> {
+        self.core.value_mut(handle)
     }
 
     /// Decreases an entry's key, cutting it when the parent order is violated.
@@ -315,8 +315,8 @@ impl<K: Ord, V> AddressableHeap<K, V> for StrictFibonacciHeap<K, V> {
         self.value(handle)
     }
 
-    fn set_value(&mut self, handle: Self::Handle, value: V) -> Result<(), InvalidHandle> {
-        self.set_value(handle, value)
+    fn value_mut(&mut self, handle: Self::Handle) -> Result<&mut V, InvalidHandle> {
+        self.value_mut(handle)
     }
 
     fn decrease_key(&mut self, handle: Self::Handle, key: K) -> Result<(), DecreaseKeyError> {

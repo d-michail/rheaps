@@ -233,11 +233,12 @@ where
     heap.clear();
     assert!(heap.is_empty());
     let handle = heap.push(1, 1);
-    heap.set_value(handle, 2).unwrap();
+    *heap.value_mut(handle).unwrap() = 2;
     assert_eq!(heap.value(handle), Ok(&2));
     heap.decrease_key(handle, 1).unwrap();
     assert_eq!(heap.pop(), Some((1, 2)));
     assert_eq!(heap.key(handle), Err(InvalidHandle::Stale));
+    assert_eq!(heap.value_mut(handle), Err(InvalidHandle::Stale));
 
     let mut heap = make();
     let handles = (0..128)
@@ -819,6 +820,10 @@ fn jheaps_addressable_handle_errors_and_reuse() {
 
     let mut other: BinaryArrayAddressableHeap<i32, i32> = BinaryArrayAddressableHeap::new();
     assert_eq!(other.delete(replacement), Err(InvalidHandle::ForeignHeap));
+    assert_eq!(
+        other.value_mut(replacement),
+        Err(InvalidHandle::ForeignHeap)
+    );
     assert_eq!(
         heap.decrease_key(replacement, 11),
         Err(DecreaseKeyError::NotDecreased)

@@ -189,10 +189,9 @@ impl<K: Ord, V> TreeCore<K, V> {
         Ok(&self.node(self.validate(handle)?).value)
     }
 
-    pub(crate) fn set_value(&mut self, handle: TreeHandle, value: V) -> Result<(), InvalidHandle> {
+    pub(crate) fn value_mut(&mut self, handle: TreeHandle) -> Result<&mut V, InvalidHandle> {
         let node = self.validate(handle)?;
-        self.node_mut(node).value = value;
-        Ok(())
+        Ok(&mut self.node_mut(node).value)
     }
 
     pub(crate) fn compare_nodes(&self, left: NodeRef, right: NodeRef) -> Ordering {

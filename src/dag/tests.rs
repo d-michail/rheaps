@@ -85,7 +85,7 @@ fn hollow_heap_handles_values_decreases_deletions_and_reuse() {
         .collect::<Vec<_>>();
     heap.assert_invariants();
 
-    heap.set_value(handles[7], "seven".to_owned()).unwrap();
+    *heap.value_mut(handles[7]).unwrap() = "seven".to_owned();
     assert_eq!(heap.value(handles[7]), Ok(&"seven".to_owned()));
     heap.decrease_key(handles[127], -1).unwrap();
     heap.decrease_key(handles[126], -2).unwrap();
@@ -96,6 +96,7 @@ fn hollow_heap_handles_values_decreases_deletions_and_reuse() {
     );
     assert_eq!(heap.delete(handles[127]), Ok((-1, "127".to_owned())));
     assert_eq!(heap.key(handles[127]), Err(InvalidHandle::Stale));
+    assert_eq!(heap.value_mut(handles[127]), Err(InvalidHandle::Stale));
     heap.assert_invariants();
 
     assert_eq!(heap.pop_entry(), Some((-2, "126".to_owned())));
@@ -114,6 +115,10 @@ fn hollow_heap_handles_values_decreases_deletions_and_reuse() {
     let mut foreign = HollowHeap::<i32, String>::new();
     let foreign_handle = foreign.insert(5, "five".to_owned());
     assert_eq!(heap.key(foreign_handle), Err(InvalidHandle::ForeignHeap));
+    assert_eq!(
+        heap.value_mut(foreign_handle),
+        Err(InvalidHandle::ForeignHeap)
+    );
     assert_eq!(
         heap.decrease_key(foreign_handle, 4),
         Err(DecreaseKeyError::InvalidHandle(InvalidHandle::ForeignHeap))

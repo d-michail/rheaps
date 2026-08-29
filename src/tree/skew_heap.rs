@@ -86,9 +86,9 @@ impl<K: Ord, V> SkewHeap<K, V> {
         self.core.value(handle)
     }
 
-    /// Replaces the value associated with `handle`.
-    pub fn set_value(&mut self, handle: TreeHandle, value: V) -> Result<(), InvalidHandle> {
-        self.core.set_value(handle, value)
+    /// Returns mutable access to the value associated with `handle`.
+    pub fn value_mut(&mut self, handle: TreeHandle) -> Result<&mut V, InvalidHandle> {
+        self.core.value_mut(handle)
     }
 
     /// Decreases an entry's key and restores heap order.
@@ -235,8 +235,8 @@ impl<K: Ord, V> AddressableHeap<K, V> for SkewHeap<K, V> {
         Self::value(self, handle)
     }
 
-    fn set_value(&mut self, handle: Self::Handle, value: V) -> Result<(), InvalidHandle> {
-        Self::set_value(self, handle, value)
+    fn value_mut(&mut self, handle: Self::Handle) -> Result<&mut V, InvalidHandle> {
+        Self::value_mut(self, handle)
     }
 
     fn decrease_key(&mut self, handle: Self::Handle, key: K) -> Result<(), DecreaseKeyError> {
