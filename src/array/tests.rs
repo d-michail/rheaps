@@ -594,6 +594,34 @@ where
     assert_ordered_by(&values, Ordering::Less);
 }
 
+fn assert_heap_collection_traits<H>()
+where
+    H: Heap<i32> + FromIterator<i32> + Extend<i32>,
+{
+    let mut heap = [7, 1, 7, -3].into_iter().collect::<H>();
+    heap.extend([4, -8, 2]);
+    assert_eq!(
+        core::iter::from_fn(|| heap.pop()).collect::<Vec<_>>(),
+        vec![-8, -3, 1, 2, 4, 7, 7]
+    );
+}
+
+fn assert_addressable_collection_traits<H>()
+where
+    H: AddressableHeap<i32, &'static str>
+        + FromIterator<(i32, &'static str)>
+        + Extend<(i32, &'static str)>,
+{
+    let mut heap = [(7, "seven"), (1, "one"), (7, "other seven")]
+        .into_iter()
+        .collect::<H>();
+    heap.extend([(-3, "minus three"), (4, "four")]);
+    assert_eq!(
+        core::iter::from_fn(|| heap.pop().map(|(key, _)| key)).collect::<Vec<_>>(),
+        vec![-3, 1, 4, 7, 7]
+    );
+}
+
 #[test]
 fn jheaps_min_heap_behavior_all_array_implementations() {
     exercise_min_heap(|| BinaryArrayHeap::with_capacity(0));
@@ -604,6 +632,33 @@ fn jheaps_min_heap_behavior_all_array_implementations() {
     exercise_min_heap(|| BinaryArrayWeakHeap::with_capacity(0));
     exercise_min_heap(|| BinaryArrayBulkInsertWeakHeap::with_capacity(0));
     exercise_min_heap(|| MinMaxBinaryArrayDoubleEndedHeap::with_capacity(0));
+}
+
+#[test]
+fn array_heaps_integrate_with_collection_traits() {
+    assert_heap_collection_traits::<BinaryArrayHeap<i32>>();
+    assert_heap_collection_traits::<DaryArrayHeap<i32>>();
+    assert_heap_collection_traits::<BinaryArrayWeakHeap<i32>>();
+    assert_heap_collection_traits::<BinaryArrayBulkInsertWeakHeap<i32>>();
+    assert_heap_collection_traits::<MinMaxBinaryArrayDoubleEndedHeap<i32>>();
+    assert_addressable_collection_traits::<BinaryArrayAddressableHeap<i32, &'static str>>();
+    assert_addressable_collection_traits::<DaryArrayAddressableHeap<i32, &'static str>>();
+
+    let dary = [3, 1, 2].into_iter().collect::<DaryArrayHeap<_>>();
+    assert_eq!(dary.degree(), 2);
+    let addressable = [(3, 3), (1, 1)]
+        .into_iter()
+        .collect::<DaryArrayAddressableHeap<_, _>>();
+    assert_eq!(addressable.degree(), 2);
+
+    let mut values = [(3, "three"), (1, "one")]
+        .into_iter()
+        .collect::<BinaryArrayIntegerValueHeap<_>>();
+    values.extend([(2, "two"), (0, "zero")]);
+    assert_eq!(
+        core::iter::from_fn(|| values.pop()).collect::<Vec<_>>(),
+        vec![(0, "zero"), (1, "one"), (2, "two"), (3, "three")]
+    );
 }
 
 #[test]

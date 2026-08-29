@@ -143,6 +143,20 @@ impl<V> Default for BinaryArrayIntegerValueHeap<V> {
     }
 }
 
+impl<V> FromIterator<(i32, V)> for BinaryArrayIntegerValueHeap<V> {
+    fn from_iter<I: IntoIterator<Item = (i32, V)>>(iter: I) -> Self {
+        Self::from_vec(iter.into_iter().collect())
+    }
+}
+
+impl<V> Extend<(i32, V)> for BinaryArrayIntegerValueHeap<V> {
+    fn extend<I: IntoIterator<Item = (i32, V)>>(&mut self, iter: I) {
+        for (key, value) in iter {
+            self.push(key, value);
+        }
+    }
+}
+
 impl<V> ValueHeap<i32, V> for BinaryArrayIntegerValueHeap<V> {
     fn push(&mut self, key: i32, value: V) {
         Self::push(self, key, value);

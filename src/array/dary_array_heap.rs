@@ -60,6 +60,21 @@ impl<T: Ord> Default for DaryArrayHeap<T> {
     }
 }
 
+impl<T: Ord> FromIterator<T> for DaryArrayHeap<T> {
+    /// Builds a binary (`degree = 2`) d-ary heap from an iterator.
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+        Self::from_vec(2, iter.into_iter().collect()).expect("binary degree is valid")
+    }
+}
+
+impl<T: Ord> Extend<T> for DaryArrayHeap<T> {
+    fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
+        for value in iter {
+            self.push(value);
+        }
+    }
+}
+
 impl<T: Ord> DaryArrayHeap<T> {
     /// Returns the number of children per node.
     #[must_use]

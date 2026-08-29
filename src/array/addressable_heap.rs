@@ -390,6 +390,20 @@ impl<K: Ord, V> Default for BinaryArrayAddressableHeap<K, V> {
     }
 }
 
+impl<K: Ord, V> FromIterator<(K, V)> for BinaryArrayAddressableHeap<K, V> {
+    fn from_iter<I: IntoIterator<Item = (K, V)>>(iter: I) -> Self {
+        Self::from_vec(iter.into_iter().collect())
+    }
+}
+
+impl<K: Ord, V> Extend<(K, V)> for BinaryArrayAddressableHeap<K, V> {
+    fn extend<I: IntoIterator<Item = (K, V)>>(&mut self, iter: I) {
+        for (key, value) in iter {
+            self.push(key, value);
+        }
+    }
+}
+
 impl<K: Ord, V> BinaryArrayAddressableHeap<K, V> {
     /// Inserts an entry and returns a handle that addresses it while live.
     pub fn push(&mut self, key: K, value: V) -> AddressableHandle {
@@ -545,6 +559,21 @@ impl<K: Ord, V> DaryArrayAddressableHeap<K, V> {
 impl<K: Ord, V> Default for DaryArrayAddressableHeap<K, V> {
     fn default() -> Self {
         Self::new(2).expect("binary degree is valid")
+    }
+}
+
+impl<K: Ord, V> FromIterator<(K, V)> for DaryArrayAddressableHeap<K, V> {
+    /// Builds a binary (`degree = 2`) addressable d-ary heap from an iterator.
+    fn from_iter<I: IntoIterator<Item = (K, V)>>(iter: I) -> Self {
+        Self::from_vec(2, iter.into_iter().collect()).expect("binary degree is valid")
+    }
+}
+
+impl<K: Ord, V> Extend<(K, V)> for DaryArrayAddressableHeap<K, V> {
+    fn extend<I: IntoIterator<Item = (K, V)>>(&mut self, iter: I) {
+        for (key, value) in iter {
+            self.push(key, value);
+        }
     }
 }
 

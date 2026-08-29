@@ -44,6 +44,20 @@ impl<T: Ord> Default for MinMaxBinaryArrayDoubleEndedHeap<T> {
     }
 }
 
+impl<T: Ord> FromIterator<T> for MinMaxBinaryArrayDoubleEndedHeap<T> {
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+        Self::from_vec(iter.into_iter().collect())
+    }
+}
+
+impl<T: Ord> Extend<T> for MinMaxBinaryArrayDoubleEndedHeap<T> {
+    fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
+        for value in iter {
+            self.push(value);
+        }
+    }
+}
+
 impl<T: Ord> MinMaxBinaryArrayDoubleEndedHeap<T> {
     /// Returns a reference to a maximum value, if present.
     #[must_use]

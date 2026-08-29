@@ -231,6 +231,11 @@ foreign, and stale handles explicitly. Removing an entry or clearing a heap
 invalidates its handle. A successful meld consumes the donor heap for future
 mutation while allowing its existing handles to be used through the receiver.
 
+Array-backed heaps implement `FromIterator` and `Extend`. Collecting into a
+d-ary heap uses the binary degree of two; extending an existing d-ary heap
+preserves its configured degree. Addressable variants collect and extend
+`(key, value)` pairs.
+
 ## Relationship to JHeaps
 
 The implementation set and much of the behavioral test coverage are derived

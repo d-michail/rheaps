@@ -158,6 +158,20 @@ impl<T: Ord> Default for BinaryArrayWeakHeap<T> {
     }
 }
 
+impl<T: Ord> FromIterator<T> for BinaryArrayWeakHeap<T> {
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+        Self::from_vec(iter.into_iter().collect())
+    }
+}
+
+impl<T: Ord> Extend<T> for BinaryArrayWeakHeap<T> {
+    fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
+        for value in iter {
+            self.push(value);
+        }
+    }
+}
+
 impl<T: Ord> BinaryArrayWeakHeap<T> {
     /// Consumes the heap and returns its backing values in heap order.
     #[must_use]
@@ -231,6 +245,20 @@ impl<T: Ord> BinaryArrayBulkInsertWeakHeap<T> {
 impl<T: Ord> Default for BinaryArrayBulkInsertWeakHeap<T> {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+impl<T: Ord> FromIterator<T> for BinaryArrayBulkInsertWeakHeap<T> {
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+        Self::from_vec(iter.into_iter().collect())
+    }
+}
+
+impl<T: Ord> Extend<T> for BinaryArrayBulkInsertWeakHeap<T> {
+    fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
+        for value in iter {
+            self.push(value);
+        }
     }
 }
 

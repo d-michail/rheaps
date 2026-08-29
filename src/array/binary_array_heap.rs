@@ -36,6 +36,20 @@ impl<T: Ord> Default for BinaryArrayHeap<T> {
     }
 }
 
+impl<T: Ord> FromIterator<T> for BinaryArrayHeap<T> {
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+        Self::from_vec(iter.into_iter().collect())
+    }
+}
+
+impl<T: Ord> Extend<T> for BinaryArrayHeap<T> {
+    fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
+        for value in iter {
+            self.push(value);
+        }
+    }
+}
+
 impl<T: Ord> BinaryArrayHeap<T> {
     /// Consumes the heap and returns its backing storage in heap order.
     #[must_use]

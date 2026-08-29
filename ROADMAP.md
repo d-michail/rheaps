@@ -130,18 +130,16 @@ Tasks:
 
 ## Priority 3: Rust ecosystem integration
 
-### Implement standard collection traits
+### Evaluate iteration traits
 
 Array heaps currently use constructors such as `from_vec` and conversions such
-as `into_vec`, but have limited integration with Rust's iterator ecosystem.
+as `into_vec`. They implement `FromIterator` and `Extend`, but do not yet
+provide iteration over an existing heap.
 
 Tasks:
 
-- Implement `FromIterator` for heaps that can be built from arbitrary input.
-- Implement `Extend` with behavior consistent with repeated insertion.
 - Evaluate consuming and borrowed `IntoIterator` implementations.
 - Document whether iteration follows priority order or internal heap order.
-- Retain linear-time heap construction where the algorithm supports it.
 
 ## Cross-cutting work
 
@@ -161,5 +159,5 @@ Every API migration should include:
 3. Design fallible heap traits and neutral shared error types.
 4. Consolidate insertion and entry method families.
 5. Seal reflected-heap implementation details.
-6. Add standard iterator and collection trait implementations.
+6. Decide whether to add consuming or borrowed heap iterators.
 7. Publish a migration guide and stabilize the resulting public API.
