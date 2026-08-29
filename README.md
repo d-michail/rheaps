@@ -16,9 +16,13 @@ collection of priority queues.
   addressable heaps; Kaplan-Zwick binary-tree soft heaps; leftist, skew,
   pairing, pure/rank/costless-meld pairing, and Fibonacci/simple/strict
   Fibonacci heaps; plus reflected Fibonacci and pairing double-ended heaps
+- Complete DAG heap family: addressable, meldable hollow heaps with lazy
+  hollow-node reclamation
 - Natural or custom ordering where supported, with checked opaque handles for
   addressable heaps. Reflected heaps implement min/max addressable operations,
   including `increase_key`, through `DoubleEndedAddressableHeap`.
+
+All public heap implementations from the Java JHeaps source are now ported.
 
 ## Porting order
 
@@ -27,7 +31,7 @@ collection of priority queues.
 3. ~~Tree heaps: explicit binary/d-ary addressable, soft, leftist, skew,
    pairing, Fibonacci, simple Fibonacci, strict Fibonacci,
    pure/rank/costless-meld pairing, and reflected variants~~
-4. DAG and remaining double-ended heaps
+4. ~~DAG heap: hollow heap~~
 
 The crate uses Rust ownership rather than Java exceptions: `peek` returns
 `Option` and `pop` returns owned values. Addressable heaps use checked opaque

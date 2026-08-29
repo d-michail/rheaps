@@ -6,6 +6,7 @@
 //! returns `None`.
 
 pub mod array;
+pub mod dag;
 pub mod monotone;
 pub mod tree;
 
