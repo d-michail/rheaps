@@ -2,6 +2,8 @@ use core::cmp::Ordering;
 use core::fmt;
 use core::sync::atomic::{AtomicU64, Ordering as AtomicOrdering};
 use std::collections::HashMap;
+#[cfg(test)]
+use std::collections::HashSet;
 
 use crate::array::{Comparator, DecreaseKeyError, InvalidHandle};
 
@@ -52,6 +54,7 @@ pub(crate) struct Node<K, V> {
     pub(crate) position: usize,
     pub(crate) children: Vec<Option<NodeRef>>,
     pub(crate) rank: usize,
+    pub(crate) marked: bool,
 }
 
 struct Slot<K, V> {
@@ -153,6 +156,7 @@ where
             position: 0,
             children: Vec::new(),
             rank: 0,
+            marked: false,
         });
         NodeRef {
             domain: self.own_domain,
@@ -310,6 +314,14 @@ where
         self.node(node).rank
     }
 
+    pub(crate) fn set_marked(&mut self, node: NodeRef, marked: bool) {
+        self.node_mut(node).marked = marked;
+    }
+
+    pub(crate) fn marked(&self, node: NodeRef) -> bool {
+        self.node(node).marked
+    }
+
     pub(crate) fn clear(&mut self) {
         for arena in self.arenas.values_mut() {
             arena.clear();
@@ -320,6 +332,41 @@ where
 
     pub(crate) fn take_arenas_from(&mut self, other: &mut Self) {
         self.arenas.extend(other.arenas.drain());
+    }
+
+    #[cfg(test)]
+    pub(crate) fn assert_heap_forest(&self, roots: impl IntoIterator<Item = NodeRef>) {
+        if !self.active {
+            return;
+        }
+
+        let roots = roots.into_iter().collect::<Vec<_>>();
+        let mut visited = HashSet::new();
+        let mut stack = roots
+            .iter()
+            .copied()
+            .map(|root| (root, None))
+            .collect::<Vec<_>>();
+        while let Some((node, parent)) = stack.pop() {
+            assert!(visited.insert(node), "a tree node appears more than once");
+            let entry = self.node(node);
+            assert_eq!(entry.parent, parent, "parent link is inconsistent");
+            for (position, child) in entry.children.iter().enumerate() {
+                if let Some(child) = child {
+                    let child_entry = self.node(*child);
+                    assert_eq!(
+                        child_entry.position, position,
+                        "child position is inconsistent"
+                    );
+                    assert!(
+                        self.compare.compare(&entry.key, &child_entry.key) != Ordering::Greater,
+                        "heap order is violated"
+                    );
+                    stack.push((*child, Some(node)));
+                }
+            }
+        }
+        assert_eq!(visited.len(), self.len, "a live node is unreachable");
     }
 }
 

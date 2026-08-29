@@ -5,7 +5,11 @@ use core::cmp::Ordering;
 use crate::array::{DecreaseKeyError, InvalidHandle};
 use crate::{AddressableHeap, Heap};
 
-use super::{BinaryTreeAddressableHeap, LeftistHeap, MeldError, PairingHeap, SkewHeap, TreeHandle};
+use super::{
+    BinaryTreeAddressableHeap, CostlessMeldPairingHeap, FibonacciHeap, LeftistHeap, MeldError,
+    PairingHeap, PurePairingHeap, RankPairingHeap, SimpleFibonacciHeap, SkewHeap,
+    StrictFibonacciHeap, TreeHandle,
+};
 
 const STRESS_SIZE: i32 = 2_000;
 
@@ -117,10 +121,21 @@ where
     heap.clear();
     assert_eq!(heap.key(stale), Err(InvalidHandle::Stale));
     assert_eq!(heap.pop(), None);
+    let reused = heap.push(3, 3);
+    assert_eq!(heap.pop(), Some((3, 3)));
+    assert_eq!(heap.key(reused), Err(InvalidHandle::Stale));
 
     let mut foreign = make();
     let foreign_handle = foreign.push(5, 5);
     assert_eq!(heap.key(foreign_handle), Err(InvalidHandle::ForeignHeap));
+    assert_eq!(
+        heap.set_value(foreign_handle, 6),
+        Err(InvalidHandle::ForeignHeap)
+    );
+    assert_eq!(
+        heap.decrease_key(foreign_handle, 4),
+        Err(DecreaseKeyError::InvalidHandle(InvalidHandle::ForeignHeap))
+    );
 }
 
 fn exercise_addressable_random_operations<H>(make: impl Fn() -> H, reverse: bool)
@@ -243,7 +258,9 @@ macro_rules! exercise_meld {
         assert_eq!(first.meld(&mut second), Err(MeldError::DonorConsumed));
         first.decrease_key(donor_handle, -1).unwrap();
         assert_eq!(first.peek().map(|(_, key, _)| *key), Some(-1));
-        let mut expected = -1;
+        assert_eq!(first.delete(donor_handle), Ok((-1, 201)));
+        assert_eq!(first.key(donor_handle), Err(InvalidHandle::Stale));
+        let mut expected = 0;
         while let Some((key, _)) = first.pop() {
             assert!(expected <= key);
             expected = key;
@@ -265,6 +282,12 @@ fn tree_heaps_follow_common_heap_and_comparator_conformance() {
     exercise_heap(LeftistHeap::<i32>::new, false);
     exercise_heap(SkewHeap::<i32>::new, false);
     exercise_heap(PairingHeap::<i32>::new, false);
+    exercise_heap(FibonacciHeap::<i32>::new, false);
+    exercise_heap(SimpleFibonacciHeap::<i32>::new, false);
+    exercise_heap(PurePairingHeap::<i32>::new, false);
+    exercise_heap(RankPairingHeap::<i32>::new, false);
+    exercise_heap(CostlessMeldPairingHeap::<i32>::new, false);
+    exercise_heap(StrictFibonacciHeap::<i32>::new, false);
     exercise_heap(
         || LeftistHeap::<i32, (), Reverse>::with_comparator(reverse as Reverse),
         true,
@@ -277,6 +300,30 @@ fn tree_heaps_follow_common_heap_and_comparator_conformance() {
         || PairingHeap::<i32, (), Reverse>::with_comparator(reverse as Reverse),
         true,
     );
+    exercise_heap(
+        || FibonacciHeap::<i32, (), Reverse>::with_comparator(reverse as Reverse),
+        true,
+    );
+    exercise_heap(
+        || SimpleFibonacciHeap::<i32, (), Reverse>::with_comparator(reverse as Reverse),
+        true,
+    );
+    exercise_heap(
+        || PurePairingHeap::<i32, (), Reverse>::with_comparator(reverse as Reverse),
+        true,
+    );
+    exercise_heap(
+        || RankPairingHeap::<i32, (), Reverse>::with_comparator(reverse as Reverse),
+        true,
+    );
+    exercise_heap(
+        || CostlessMeldPairingHeap::<i32, (), Reverse>::with_comparator(reverse as Reverse),
+        true,
+    );
+    exercise_heap(
+        || StrictFibonacciHeap::<i32, (), Reverse>::with_comparator(reverse as Reverse),
+        true,
+    );
 }
 
 #[test]
@@ -284,6 +331,12 @@ fn tree_addressable_heaps_enforce_handle_rules() {
     exercise_addressable_heap(LeftistHeap::<i32, usize>::new, false);
     exercise_addressable_heap(SkewHeap::<i32, usize>::new, false);
     exercise_addressable_heap(PairingHeap::<i32, usize>::new, false);
+    exercise_addressable_heap(FibonacciHeap::<i32, usize>::new, false);
+    exercise_addressable_heap(SimpleFibonacciHeap::<i32, usize>::new, false);
+    exercise_addressable_heap(PurePairingHeap::<i32, usize>::new, false);
+    exercise_addressable_heap(RankPairingHeap::<i32, usize>::new, false);
+    exercise_addressable_heap(CostlessMeldPairingHeap::<i32, usize>::new, false);
+    exercise_addressable_heap(StrictFibonacciHeap::<i32, usize>::new, false);
     exercise_binary_addressable_heap(BinaryTreeAddressableHeap::<i32, usize>::new, false);
     exercise_addressable_heap(
         || LeftistHeap::<i32, usize, Reverse>::with_comparator(reverse as Reverse),
@@ -297,6 +350,30 @@ fn tree_addressable_heaps_enforce_handle_rules() {
         || PairingHeap::<i32, usize, Reverse>::with_comparator(reverse as Reverse),
         true,
     );
+    exercise_addressable_heap(
+        || FibonacciHeap::<i32, usize, Reverse>::with_comparator(reverse as Reverse),
+        true,
+    );
+    exercise_addressable_heap(
+        || SimpleFibonacciHeap::<i32, usize, Reverse>::with_comparator(reverse as Reverse),
+        true,
+    );
+    exercise_addressable_heap(
+        || PurePairingHeap::<i32, usize, Reverse>::with_comparator(reverse as Reverse),
+        true,
+    );
+    exercise_addressable_heap(
+        || RankPairingHeap::<i32, usize, Reverse>::with_comparator(reverse as Reverse),
+        true,
+    );
+    exercise_addressable_heap(
+        || CostlessMeldPairingHeap::<i32, usize, Reverse>::with_comparator(reverse as Reverse),
+        true,
+    );
+    exercise_addressable_heap(
+        || StrictFibonacciHeap::<i32, usize, Reverse>::with_comparator(reverse as Reverse),
+        true,
+    );
     exercise_binary_addressable_heap(
         || BinaryTreeAddressableHeap::<i32, usize, Reverse>::with_comparator(reverse as Reverse),
         true,
@@ -305,6 +382,36 @@ fn tree_addressable_heaps_enforce_handle_rules() {
     exercise_addressable_random_operations(LeftistHeap::<i32, usize>::new, false);
     exercise_addressable_random_operations(SkewHeap::<i32, usize>::new, false);
     exercise_addressable_random_operations(PairingHeap::<i32, usize>::new, false);
+    exercise_addressable_random_operations(FibonacciHeap::<i32, usize>::new, false);
+    exercise_addressable_random_operations(SimpleFibonacciHeap::<i32, usize>::new, false);
+    exercise_addressable_random_operations(PurePairingHeap::<i32, usize>::new, false);
+    exercise_addressable_random_operations(RankPairingHeap::<i32, usize>::new, false);
+    exercise_addressable_random_operations(CostlessMeldPairingHeap::<i32, usize>::new, false);
+    exercise_addressable_random_operations(StrictFibonacciHeap::<i32, usize>::new, false);
+    exercise_addressable_random_operations(
+        || FibonacciHeap::<i32, usize, Reverse>::with_comparator(reverse as Reverse),
+        true,
+    );
+    exercise_addressable_random_operations(
+        || SimpleFibonacciHeap::<i32, usize, Reverse>::with_comparator(reverse as Reverse),
+        true,
+    );
+    exercise_addressable_random_operations(
+        || PurePairingHeap::<i32, usize, Reverse>::with_comparator(reverse as Reverse),
+        true,
+    );
+    exercise_addressable_random_operations(
+        || RankPairingHeap::<i32, usize, Reverse>::with_comparator(reverse as Reverse),
+        true,
+    );
+    exercise_addressable_random_operations(
+        || CostlessMeldPairingHeap::<i32, usize, Reverse>::with_comparator(reverse as Reverse),
+        true,
+    );
+    exercise_addressable_random_operations(
+        || StrictFibonacciHeap::<i32, usize, Reverse>::with_comparator(reverse as Reverse),
+        true,
+    );
     exercise_addressable_random_operations(BinaryTreeAddressableHeap::<i32, usize>::new, false);
 }
 
@@ -313,18 +420,86 @@ fn tree_melds_consume_donor_and_preserve_handles() {
     exercise_meld!(LeftistHeap);
     exercise_meld!(SkewHeap);
     exercise_meld!(PairingHeap);
+    exercise_meld!(FibonacciHeap);
+    exercise_meld!(SimpleFibonacciHeap);
+    exercise_meld!(PurePairingHeap);
+    exercise_meld!(RankPairingHeap);
+    exercise_meld!(CostlessMeldPairingHeap);
+    exercise_meld!(StrictFibonacciHeap);
 }
 
 #[test]
 fn tree_meld_rejects_distinct_comparators() {
-    let mut first = PairingHeap::<i32, usize, Reverse>::with_comparator(reverse as Reverse);
-    let mut second = PairingHeap::<i32, usize, Reverse>::with_comparator(reverse_again as Reverse);
-    first.push(1, 1);
-    second.push(2, 2);
-    assert_eq!(
-        first.meld(&mut second),
-        Err(MeldError::IncompatibleComparator)
-    );
-    assert_eq!(first.pop(), Some((1, 1)));
-    assert_eq!(second.pop(), Some((2, 2)));
+    macro_rules! reject_distinct_comparators {
+        ($heap:ident) => {{
+            let mut first = $heap::<i32, usize, Reverse>::with_comparator(reverse as Reverse);
+            let mut second =
+                $heap::<i32, usize, Reverse>::with_comparator(reverse_again as Reverse);
+            first.push(1, 1);
+            second.push(2, 2);
+            assert_eq!(
+                first.meld(&mut second),
+                Err(MeldError::IncompatibleComparator)
+            );
+            assert_eq!(first.pop(), Some((1, 1)));
+            assert_eq!(second.pop(), Some((2, 2)));
+        }};
+    }
+
+    reject_distinct_comparators!(LeftistHeap);
+    reject_distinct_comparators!(SkewHeap);
+    reject_distinct_comparators!(PairingHeap);
+    reject_distinct_comparators!(FibonacciHeap);
+    reject_distinct_comparators!(SimpleFibonacciHeap);
+    reject_distinct_comparators!(PurePairingHeap);
+    reject_distinct_comparators!(RankPairingHeap);
+    reject_distinct_comparators!(CostlessMeldPairingHeap);
+    reject_distinct_comparators!(StrictFibonacciHeap);
+}
+
+#[test]
+fn advanced_tree_heaps_maintain_node_forest_invariants() {
+    macro_rules! exercise_invariants {
+        ($heap:ident) => {{
+            let mut heap = $heap::<i32, usize>::new();
+            let handles = (0..128)
+                .rev()
+                .map(|key| heap.push(key, key as usize))
+                .collect::<Vec<_>>();
+            heap.assert_invariants();
+
+            for index in (0..handles.len()).step_by(3) {
+                heap.decrease_key(handles[index], -1_000 - index as i32)
+                    .unwrap();
+                heap.assert_invariants();
+            }
+            for index in (1..handles.len()).step_by(4) {
+                heap.delete(handles[index]).unwrap();
+                heap.assert_invariants();
+            }
+
+            let mut donor = $heap::<i32, usize>::new();
+            let donor_handle = donor.push(-2_000, 999);
+            heap.meld(&mut donor).unwrap();
+            heap.assert_invariants();
+            heap.decrease_key(donor_handle, -3_000).unwrap();
+            heap.assert_invariants();
+
+            let mut previous = None;
+            while let Some((key, _)) = heap.pop() {
+                if let Some(previous) = previous {
+                    assert!(previous <= key);
+                }
+                previous = Some(key);
+                heap.assert_invariants();
+            }
+        }};
+    }
+
+    exercise_invariants!(FibonacciHeap);
+    exercise_invariants!(SimpleFibonacciHeap);
+    exercise_invariants!(PurePairingHeap);
+    exercise_invariants!(RankPairingHeap);
+    exercise_invariants!(CostlessMeldPairingHeap);
+    exercise_invariants!(StrictFibonacciHeap);
 }
