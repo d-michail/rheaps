@@ -3,7 +3,7 @@ use core::cmp::Ordering;
 use crate::Heap;
 
 /// Comparator that uses [`Ord`] to order values.
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct NaturalOrder;
 
 /// Defines the ordering used by a heap.

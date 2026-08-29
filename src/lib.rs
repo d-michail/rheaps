@@ -7,6 +7,7 @@
 
 pub mod array;
 pub mod monotone;
+pub mod tree;
 
 /// The common interface implemented by min-oriented heaps.
 pub trait Heap<T> {
@@ -134,4 +135,27 @@ pub trait AddressableHeap<K, V> {
     fn is_empty(&self) -> bool {
         self.len() == 0
     }
+}
+
+/// A heap that can efficiently combine its contents with another heap of the
+/// same concrete type.
+///
+/// A successful meld consumes `other`: it becomes empty and rejects further
+/// mutation. Handles created by `other` remain usable through `self` for
+/// addressable implementations.
+pub trait MeldableHeap<T>: Heap<T> {
+    /// Error returned when a meld cannot be performed.
+    type MeldError;
+
+    /// Melds `other` into this heap.
+    fn meld(&mut self, other: &mut Self) -> Result<(), Self::MeldError>;
+}
+
+/// An addressable heap that can efficiently meld another heap.
+pub trait MeldableAddressableHeap<K, V>: AddressableHeap<K, V> {
+    /// Error returned when a meld cannot be performed.
+    type MeldError;
+
+    /// Melds `other` into this heap.
+    fn meld(&mut self, other: &mut Self) -> Result<(), Self::MeldError>;
 }
