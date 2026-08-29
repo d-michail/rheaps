@@ -134,9 +134,9 @@ Radix heaps require explicit inclusive key bounds and reject insertions that
 fall outside those bounds or violate monotonicity.
 
 ```rust
-use rheaps::monotone::IntegerRadixHeap;
+use rheaps::monotone::U32RadixHeap;
 
-let mut heap = IntegerRadixHeap::new(0, 1_000).unwrap();
+let mut heap = U32RadixHeap::new(0, 1_000).unwrap();
 heap.push(12).unwrap();
 heap.push(7).unwrap();
 assert_eq!(heap.pop(), Some(7));
@@ -149,11 +149,11 @@ Floating-point radix heaps use `FiniteF64`, which provides a total order and
 rejects NaN and infinite values before insertion.
 
 ```rust
-use rheaps::monotone::{DoubleRadixHeap, FiniteF64};
+use rheaps::monotone::{F64RadixHeap, FiniteF64};
 
 let zero = FiniteF64::new(0.0).unwrap();
 let ten = FiniteF64::new(10.0).unwrap();
-let mut heap = DoubleRadixHeap::new(zero, ten).unwrap();
+let mut heap = F64RadixHeap::new(zero, ten).unwrap();
 heap.push(FiniteF64::new(2.5).unwrap()).unwrap();
 assert_eq!(heap.pop().map(FiniteF64::into_inner), Some(2.5));
 ```
@@ -209,10 +209,10 @@ maximum access together with both `decrease_key` and `increase_key`.
 
 Each supported key family has value-less and addressable variants:
 
-- `IntegerRadixHeap` and `IntegerRadixAddressableHeap` for `u32`;
-- `LongRadixHeap` and `LongRadixAddressableHeap` for `u64`;
-- `DoubleRadixHeap` and `DoubleRadixAddressableHeap` for `FiniteF64`; and
-- `BigIntegerRadixHeap` and `BigIntegerRadixAddressableHeap` for
+- `U32RadixHeap` and `U32RadixAddressableHeap` for `u32`;
+- `U64RadixHeap` and `U64RadixAddressableHeap` for `u64`;
+- `F64RadixHeap` and `F64RadixAddressableHeap` for `FiniteF64`; and
+- `BigUintRadixHeap` and `BigUintRadixAddressableHeap` for
   `num_bigint::BigUint`.
 
 ## Common interfaces

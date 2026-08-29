@@ -3,9 +3,9 @@
 use core::fmt::Debug;
 
 use super::{
-    BigIntegerRadixAddressableHeap, BigIntegerRadixHeap, BigUint, DoubleRadixAddressableHeap,
-    DoubleRadixHeap, FiniteF64, IntegerRadixAddressableHeap, IntegerRadixHeap,
-    LongRadixAddressableHeap, LongRadixHeap, RadixDecreaseKeyError, RadixHandle, RadixHeapError,
+    BigUint, BigUintRadixAddressableHeap, BigUintRadixHeap, F64RadixAddressableHeap, F64RadixHeap,
+    FiniteF64, RadixDecreaseKeyError, RadixHandle, RadixHeapError, U32RadixAddressableHeap,
+    U32RadixHeap, U64RadixAddressableHeap, U64RadixHeap,
 };
 use crate::array::InvalidHandle;
 use crate::{AddressableHeap, Heap};
@@ -75,10 +75,10 @@ macro_rules! impl_value_fixture {
     };
 }
 
-impl_value_fixture!(IntegerRadixHeap, u32);
-impl_value_fixture!(LongRadixHeap, u64);
-impl_value_fixture!(DoubleRadixHeap, FiniteF64);
-impl_value_fixture!(BigIntegerRadixHeap, BigUint);
+impl_value_fixture!(U32RadixHeap, u32);
+impl_value_fixture!(U64RadixHeap, u64);
+impl_value_fixture!(F64RadixHeap, FiniteF64);
+impl_value_fixture!(BigUintRadixHeap, BigUint);
 
 fn exercise_value_heap<H, K>(mut heap: H, values: Vec<K>)
 where
@@ -154,10 +154,10 @@ macro_rules! impl_addressable_fixture {
     };
 }
 
-impl_addressable_fixture!(IntegerRadixAddressableHeap<usize>, u32);
-impl_addressable_fixture!(LongRadixAddressableHeap<usize>, u64);
-impl_addressable_fixture!(DoubleRadixAddressableHeap<usize>, FiniteF64);
-impl_addressable_fixture!(BigIntegerRadixAddressableHeap<usize>, BigUint);
+impl_addressable_fixture!(U32RadixAddressableHeap<usize>, u32);
+impl_addressable_fixture!(U64RadixAddressableHeap<usize>, u64);
+impl_addressable_fixture!(F64RadixAddressableHeap<usize>, FiniteF64);
+impl_addressable_fixture!(BigUintRadixAddressableHeap<usize>, BigUint);
 
 fn exercise_addressable_heap<H, K>(mut heap: H, values: Vec<K>)
 where
@@ -210,14 +210,14 @@ fn value_radix_heaps_sort_random_and_boundary_keys() {
         .chain(core::iter::once(u32::MAX))
         .chain((0..RANDOM_VALUES).map(|_| (random.next_u64() % 100_001) as u32))
         .collect();
-    exercise_value_heap(IntegerRadixHeap::new(0, u32::MAX).unwrap(), integers);
+    exercise_value_heap(U32RadixHeap::new(0, u32::MAX).unwrap(), integers);
 
     let mut random = JavaRandom::new(2);
     let longs = core::iter::once(0)
         .chain(core::iter::once(u64::MAX))
         .chain((0..RANDOM_VALUES).map(|_| random.next_u64() % 100_001))
         .collect();
-    exercise_value_heap(LongRadixHeap::new(0, u64::MAX).unwrap(), longs);
+    exercise_value_heap(U64RadixHeap::new(0, u64::MAX).unwrap(), longs);
 
     let mut random = JavaRandom::new(3);
     let doubles = core::iter::once(0.0)
@@ -227,7 +227,7 @@ fn value_radix_heaps_sort_random_and_boundary_keys() {
         .map(finite)
         .collect();
     exercise_value_heap(
-        DoubleRadixHeap::new(finite(0.0), finite(f64::MAX)).unwrap(),
+        F64RadixHeap::new(finite(0.0), finite(f64::MAX)).unwrap(),
         doubles,
     );
 
@@ -242,7 +242,7 @@ fn value_radix_heaps_sort_random_and_boundary_keys() {
         )
         .collect();
     exercise_value_heap(
-        BigIntegerRadixHeap::new(minimum, maximum).unwrap(),
+        BigUintRadixHeap::new(minimum, maximum).unwrap(),
         big_integers,
     );
 }
@@ -253,16 +253,13 @@ fn addressable_radix_heaps_sort_random_and_invalidate_handles() {
     let integers = core::iter::once(0)
         .chain((0..RANDOM_VALUES).map(|_| (random.next_u64() % 100_001) as u32))
         .collect();
-    exercise_addressable_heap(
-        IntegerRadixAddressableHeap::new(0, 100_000).unwrap(),
-        integers,
-    );
+    exercise_addressable_heap(U32RadixAddressableHeap::new(0, 100_000).unwrap(), integers);
 
     let mut random = JavaRandom::new(6);
     let longs = core::iter::once(0)
         .chain((0..RANDOM_VALUES).map(|_| random.next_u64() % 100_001))
         .collect();
-    exercise_addressable_heap(LongRadixAddressableHeap::new(0, 100_000).unwrap(), longs);
+    exercise_addressable_heap(U64RadixAddressableHeap::new(0, 100_000).unwrap(), longs);
 
     let mut random = JavaRandom::new(7);
     let doubles = core::iter::once(0.0)
@@ -270,7 +267,7 @@ fn addressable_radix_heaps_sort_random_and_invalidate_handles() {
         .map(finite)
         .collect();
     exercise_addressable_heap(
-        DoubleRadixAddressableHeap::new(finite(0.0), finite(10_000.0)).unwrap(),
+        F64RadixAddressableHeap::new(finite(0.0), finite(10_000.0)).unwrap(),
         doubles,
     );
 
@@ -284,7 +281,7 @@ fn addressable_radix_heaps_sort_random_and_invalidate_handles() {
         )
         .collect();
     exercise_addressable_heap(
-        BigIntegerRadixAddressableHeap::new(minimum, maximum).unwrap(),
+        BigUintRadixAddressableHeap::new(minimum, maximum).unwrap(),
         big_integers,
     );
 }
@@ -331,7 +328,7 @@ macro_rules! exercise_addressable_handles {
 #[test]
 fn addressable_heaps_validate_handles_and_monotone_key_updates() {
     exercise_addressable_handles!(
-        IntegerRadixAddressableHeap::new(0, 100).unwrap(),
+        U32RadixAddressableHeap::new(0, 100).unwrap(),
         0_u32,
         5_u32,
         10_u32,
@@ -340,7 +337,7 @@ fn addressable_heaps_validate_handles_and_monotone_key_updates() {
         30_u32
     );
     exercise_addressable_handles!(
-        LongRadixAddressableHeap::new(0, 100).unwrap(),
+        U64RadixAddressableHeap::new(0, 100).unwrap(),
         0_u64,
         5_u64,
         10_u64,
@@ -349,7 +346,7 @@ fn addressable_heaps_validate_handles_and_monotone_key_updates() {
         30_u64
     );
     exercise_addressable_handles!(
-        DoubleRadixAddressableHeap::new(finite(0.0), finite(100.0)).unwrap(),
+        F64RadixAddressableHeap::new(finite(0.0), finite(100.0)).unwrap(),
         finite(0.0),
         finite(5.0),
         finite(10.0),
@@ -358,7 +355,7 @@ fn addressable_heaps_validate_handles_and_monotone_key_updates() {
         finite(30.0)
     );
     exercise_addressable_handles!(
-        BigIntegerRadixAddressableHeap::new(BigUint::from(0_u8), BigUint::from(100_u8)).unwrap(),
+        BigUintRadixAddressableHeap::new(BigUint::from(0_u8), BigUint::from(100_u8)).unwrap(),
         BigUint::from(0_u8),
         BigUint::from(5_u8),
         BigUint::from(10_u8),
@@ -371,10 +368,10 @@ fn addressable_heaps_validate_handles_and_monotone_key_updates() {
 #[test]
 fn heaps_report_range_and_monotonicity_errors() {
     assert!(matches!(
-        IntegerRadixHeap::new(2, 1),
+        U32RadixHeap::new(2, 1),
         Err(RadixHeapError::InvalidRange)
     ));
-    let mut integer = IntegerRadixHeap::new(10, 20).unwrap();
+    let mut integer = U32RadixHeap::new(10, 20).unwrap();
     assert_eq!(integer.push(9), Err(RadixHeapError::KeyOutOfRange));
     integer.push(15).unwrap();
     assert_eq!(integer.pop(), Some(15));
@@ -382,16 +379,16 @@ fn heaps_report_range_and_monotonicity_errors() {
     assert_eq!(integer.push(21), Err(RadixHeapError::KeyOutOfRange));
 
     assert!(matches!(
-        LongRadixHeap::new(2, 1),
+        U64RadixHeap::new(2, 1),
         Err(RadixHeapError::InvalidRange)
     ));
-    let mut long = LongRadixHeap::new(0, 20).unwrap();
+    let mut long = U64RadixHeap::new(0, 20).unwrap();
     long.push(15).unwrap();
     assert_eq!(long.pop(), Some(15));
     assert_eq!(long.push(14), Err(RadixHeapError::MonotonicityViolation));
 
     let minimum = BigUint::from(10_u8);
-    let mut big = BigIntegerRadixHeap::new(minimum.clone(), BigUint::from(20_u8)).unwrap();
+    let mut big = BigUintRadixHeap::new(minimum.clone(), BigUint::from(20_u8)).unwrap();
     big.push(BigUint::from(15_u8)).unwrap();
     assert_eq!(big.pop(), Some(BigUint::from(15_u8)));
     assert_eq!(
@@ -399,7 +396,7 @@ fn heaps_report_range_and_monotonicity_errors() {
         Err(RadixHeapError::MonotonicityViolation)
     );
     assert!(matches!(
-        BigIntegerRadixHeap::new(BigUint::from(2_u8), BigUint::from(1_u8)),
+        BigUintRadixHeap::new(BigUint::from(2_u8), BigUint::from(1_u8)),
         Err(RadixHeapError::InvalidRange)
     ));
 }
@@ -410,17 +407,17 @@ fn double_heaps_use_total_order_and_reject_non_finite_keys() {
     assert!(FiniteF64::new(f64::INFINITY).is_err());
     assert!(FiniteF64::try_from(f64::NEG_INFINITY).is_err());
     assert!(matches!(
-        DoubleRadixHeap::new(finite(-1.0), finite(1.0)),
+        F64RadixHeap::new(finite(-1.0), finite(1.0)),
         Err(RadixHeapError::InvalidRange)
     ));
 
-    let mut heap = DoubleRadixHeap::new(finite(-0.0), finite(0.0)).unwrap();
+    let mut heap = F64RadixHeap::new(finite(-0.0), finite(0.0)).unwrap();
     heap.push(finite(0.0)).unwrap();
     heap.push(finite(-0.0)).unwrap();
     assert_eq!(heap.pop().unwrap().as_f64().to_bits(), (-0.0_f64).to_bits());
     assert_eq!(heap.pop().unwrap().as_f64().to_bits(), 0.0_f64.to_bits());
 
-    let mut values = DoubleRadixHeap::new(finite(0.0), finite(10.0)).unwrap();
+    let mut values = F64RadixHeap::new(finite(0.0), finite(10.0)).unwrap();
     values.push(finite(0.0)).unwrap();
     assert_eq!(values.pop(), Some(finite(0.0)));
     assert_eq!(
@@ -428,7 +425,7 @@ fn double_heaps_use_total_order_and_reject_non_finite_keys() {
         Err(RadixHeapError::KeyOutOfRange)
     );
 
-    let mut regression = DoubleRadixHeap::new(finite(0.0), finite(3.667_944_409_236_726)).unwrap();
+    let mut regression = F64RadixHeap::new(finite(0.0), finite(3.667_944_409_236_726)).unwrap();
     regression.push(finite(0.0)).unwrap();
     regression.push(finite(0.916_986_102_309_181_5)).unwrap();
     assert_eq!(regression.pop(), Some(finite(0.0)));
@@ -439,11 +436,11 @@ fn double_heaps_use_total_order_and_reject_non_finite_keys() {
 
 #[test]
 fn common_heap_traits_remain_usable_for_valid_monotone_keys() {
-    let mut values = IntegerRadixHeap::new(0, 10).unwrap();
+    let mut values = U32RadixHeap::new(0, 10).unwrap();
     Heap::push(&mut values, 3);
     assert_eq!(Heap::pop(&mut values), Some(3));
 
-    let mut entries = IntegerRadixAddressableHeap::new(0, 10).unwrap();
+    let mut entries = U32RadixAddressableHeap::new(0, 10).unwrap();
     let handle = AddressableHeap::push(&mut entries, 3, "entry");
     assert_eq!(AddressableHeap::key(&entries, handle), Ok(&3));
     assert_eq!(AddressableHeap::pop(&mut entries), Some((3, "entry")));

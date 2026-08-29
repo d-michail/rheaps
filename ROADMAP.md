@@ -128,28 +128,7 @@ Tasks:
   construct.
 - Minimize public types that exist only to satisfy visibility rules.
 
-## Priority 3: Rust naming and ecosystem integration
-
-### Rename Java primitive-oriented radix heaps
-
-The current names reflect Java primitive and class names rather than their
-Rust key types:
-
-| Current name | Key type | Candidate Rust name |
-| --- | --- | --- |
-| `IntegerRadixHeap` | `u32` | `U32RadixHeap` |
-| `LongRadixHeap` | `u64` | `U64RadixHeap` |
-| `DoubleRadixHeap` | `FiniteF64` | `F64RadixHeap` |
-| `BigIntegerRadixHeap` | `BigUint` | `BigUintRadixHeap` |
-
-The same change applies to addressable variants.
-
-Tasks:
-
-- Confirm final names against Rust ecosystem conventions.
-- Introduce aliases and deprecate old names if compatibility requires it.
-- Update examples, documentation, and error messages.
-- Avoid implying support for signed integer ranges where keys are unsigned.
+## Priority 3: Rust ecosystem integration
 
 ### Implement standard collection traits
 
@@ -182,6 +161,5 @@ Every API migration should include:
 3. Design fallible heap traits and neutral shared error types.
 4. Consolidate insertion and entry method families.
 5. Seal reflected-heap implementation details.
-6. Introduce Rust-oriented radix names.
-7. Add standard iterator and collection trait implementations.
-8. Publish a migration guide and stabilize the resulting public API.
+6. Add standard iterator and collection trait implementations.
+7. Publish a migration guide and stabilize the resulting public API.

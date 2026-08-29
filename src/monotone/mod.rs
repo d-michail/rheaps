@@ -4,7 +4,7 @@
 //! A radix heap is efficient when items are removed in nondecreasing key
 //! order, such as in Dijkstra's algorithm.  A key inserted after an item has
 //! been removed must be no smaller than that last removed key.  Fallible
-//! inherent insertion methods ([`IntegerRadixHeap::push`], for example)
+//! inherent insertion methods ([`U32RadixHeap::push`], for example)
 //! report violations through [`RadixHeapError`].
 //!
 //! The [`Heap`] and [`AddressableHeap`] trait implementations are available
@@ -840,19 +840,15 @@ macro_rules! define_radix_heap {
     };
 }
 
+define_radix_heap!(U32RadixHeap, u32, "A monotone radix heap for `u32` keys.");
+define_radix_heap!(U64RadixHeap, u64, "A monotone radix heap for `u64` keys.");
 define_radix_heap!(
-    IntegerRadixHeap,
-    u32,
-    "A monotone radix heap for `u32` keys."
-);
-define_radix_heap!(LongRadixHeap, u64, "A monotone radix heap for `u64` keys.");
-define_radix_heap!(
-    DoubleRadixHeap,
+    F64RadixHeap,
     FiniteF64,
     "A monotone radix heap for finite, non-negative [`FiniteF64`] keys."
 );
 define_radix_heap!(
-    BigIntegerRadixHeap,
+    BigUintRadixHeap,
     BigUint,
     "A monotone radix heap for arbitrary-sized unsigned [`BigUint`] keys."
 );
@@ -1054,22 +1050,22 @@ macro_rules! define_addressable_radix_heap {
 }
 
 define_addressable_radix_heap!(
-    IntegerRadixAddressableHeap,
+    U32RadixAddressableHeap,
     u32,
     "An addressable monotone radix heap for `u32` keys."
 );
 define_addressable_radix_heap!(
-    LongRadixAddressableHeap,
+    U64RadixAddressableHeap,
     u64,
     "An addressable monotone radix heap for `u64` keys."
 );
 define_addressable_radix_heap!(
-    DoubleRadixAddressableHeap,
+    F64RadixAddressableHeap,
     FiniteF64,
     "An addressable monotone radix heap for finite, non-negative [`FiniteF64`] keys."
 );
 define_addressable_radix_heap!(
-    BigIntegerRadixAddressableHeap,
+    BigUintRadixAddressableHeap,
     BigUint,
     "An addressable monotone radix heap for arbitrary-sized unsigned [`BigUint`] keys."
 );
