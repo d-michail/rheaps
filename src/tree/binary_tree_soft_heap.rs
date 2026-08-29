@@ -1,4 +1,3 @@
-use crate::array::{Comparator, NaturalOrder};
 use crate::{Heap, MeldableHeap};
 
 use super::soft_heap_core::{SoftHeapCore, SoftHeapError, SoftMeldError};
@@ -10,36 +9,20 @@ use super::soft_heap_core::{SoftHeapCore, SoftHeapError, SoftMeldError};
 /// The original keys are always returned, exactly once. Keys must be cloneable
 /// because a soft heap retains a corrupted-key snapshot while returning the
 /// original key by value.
-pub struct BinaryTreeSoftHeap<K, C = NaturalOrder> {
-    core: SoftHeapCore<K, (), C>,
+pub struct BinaryTreeSoftHeap<K> {
+    core: SoftHeapCore<K, ()>,
 }
 
 impl<K: Ord + Clone> BinaryTreeSoftHeap<K> {
     /// Creates a heap with an error rate strictly between zero and one.
     pub fn new(error_rate: f64) -> Result<Self, SoftHeapError> {
-        Self::with_comparator(error_rate, NaturalOrder)
+        Ok(Self {
+            core: SoftHeapCore::new(error_rate)?,
+        })
     }
 }
 
-impl<K, C> BinaryTreeSoftHeap<K, C>
-where
-    K: Clone,
-    C: Comparator<K>,
-{
-    /// Creates a heap with an error rate strictly between zero and one,
-    /// ordered by `compare`.
-    pub fn with_comparator(error_rate: f64, compare: C) -> Result<Self, SoftHeapError> {
-        Ok(Self {
-            core: SoftHeapCore::new(error_rate, compare)?,
-        })
-    }
-
-    /// Returns the comparator used to order corrupted keys.
-    #[must_use]
-    pub fn comparator(&self) -> &C {
-        self.core.comparator()
-    }
-
+impl<K: Ord + Clone> BinaryTreeSoftHeap<K> {
     /// Returns the rank below which keys are never corrupted.
     #[must_use]
     pub const fn rank_limit(&self) -> usize {
@@ -86,11 +69,7 @@ where
     }
 }
 
-impl<K, C> BinaryTreeSoftHeap<K, C>
-where
-    K: Clone,
-    C: Comparator<K> + PartialEq,
-{
+impl<K: Ord + Clone> BinaryTreeSoftHeap<K> {
     /// Melds `other` into this heap, consuming the donor on success.
     pub fn meld(&mut self, other: &mut Self) -> Result<(), SoftMeldError> {
         if !self.core.active() {
@@ -98,9 +77,6 @@ where
         }
         if !other.core.active() {
             return Err(SoftMeldError::DonorConsumed);
-        }
-        if self.comparator() != other.comparator() {
-            return Err(SoftMeldError::IncompatibleComparator);
         }
         if self.rank_limit() != other.rank_limit() {
             return Err(SoftMeldError::IncompatibleErrorRate);
@@ -110,11 +86,7 @@ where
     }
 }
 
-impl<T, C> Heap<T> for BinaryTreeSoftHeap<T, C>
-where
-    T: Clone,
-    C: Comparator<T>,
-{
+impl<T: Ord + Clone> Heap<T> for BinaryTreeSoftHeap<T> {
     fn push(&mut self, value: T) {
         self.insert(value);
     }
@@ -136,11 +108,7 @@ where
     }
 }
 
-impl<T, C> MeldableHeap<T> for BinaryTreeSoftHeap<T, C>
-where
-    T: Clone,
-    C: Comparator<T> + PartialEq,
-{
+impl<T: Ord + Clone> MeldableHeap<T> for BinaryTreeSoftHeap<T> {
     type MeldError = SoftMeldError;
 
     fn meld(&mut self, other: &mut Self) -> Result<(), Self::MeldError> {

@@ -2,7 +2,7 @@ use core::cmp::Ordering;
 use core::fmt;
 
 use crate::AddressableHeap;
-use crate::array::{Comparator, DecreaseKeyError, InvalidHandle, NaturalOrder};
+use crate::array::{DecreaseKeyError, InvalidHandle};
 
 use super::core::{TreeHandle, next_domain_id};
 
@@ -43,8 +43,7 @@ impl std::error::Error for InvalidBranchingFactor {}
 ///
 /// Entries reside in nodes of a complete d-ary tree. Entry handles remain
 /// stable while entries move between tree nodes to restore heap order.
-pub struct DaryTreeAddressableHeap<K, V = (), C = NaturalOrder> {
-    compare: C,
+pub struct DaryTreeAddressableHeap<K, V = ()> {
     degree: usize,
     entries: Vec<EntrySlot<K, V>>,
     free_entries: Vec<usize>,
@@ -55,21 +54,10 @@ pub struct DaryTreeAddressableHeap<K, V = (), C = NaturalOrder> {
 impl<K: Ord, V> DaryTreeAddressableHeap<K, V> {
     /// Creates an empty heap with a power-of-two branching factor.
     pub fn new(degree: usize) -> Result<Self, InvalidBranchingFactor> {
-        Self::with_comparator(degree, NaturalOrder)
-    }
-}
-
-impl<K, V, C> DaryTreeAddressableHeap<K, V, C>
-where
-    C: Comparator<K>,
-{
-    /// Creates an empty heap ordered by `compare`.
-    pub fn with_comparator(degree: usize, compare: C) -> Result<Self, InvalidBranchingFactor> {
         if degree < 2 || !degree.is_power_of_two() {
             return Err(InvalidBranchingFactor(degree));
         }
         Ok(Self {
-            compare,
             degree,
             entries: Vec::new(),
             free_entries: Vec::new(),
@@ -82,12 +70,6 @@ where
     #[must_use]
     pub const fn degree(&self) -> usize {
         self.degree
-    }
-
-    /// Returns the comparator used to order keys.
-    #[must_use]
-    pub fn comparator(&self) -> &C {
-        &self.compare
     }
 
     /// Inserts an entry and returns a checked handle.
@@ -167,7 +149,7 @@ where
         let entry = self
             .validate(handle)
             .map_err(DecreaseKeyError::InvalidHandle)?;
-        if self.compare.compare(&key, &self.entry(entry).key) == Ordering::Greater {
+        if key > self.entry(entry).key {
             return Err(DecreaseKeyError::NotDecreased);
         }
         let position = self.entry(entry).position;
@@ -342,17 +324,13 @@ where
     }
 
     fn compare_positions(&self, left: usize, right: usize) -> Ordering {
-        self.compare.compare(
-            &self.entry(self.positions[left].entry).key,
-            &self.entry(self.positions[right].entry).key,
-        )
+        self.entry(self.positions[left].entry)
+            .key
+            .cmp(&self.entry(self.positions[right].entry).key)
     }
 }
 
-impl<K, V, C> AddressableHeap<K, V> for DaryTreeAddressableHeap<K, V, C>
-where
-    C: Comparator<K>,
-{
+impl<K: Ord, V> AddressableHeap<K, V> for DaryTreeAddressableHeap<K, V> {
     type Handle = TreeHandle;
 
     fn push(&mut self, key: K, value: V) -> Self::Handle {

@@ -1,6 +1,5 @@
 use core::cmp::Ordering;
 
-use crate::array::{Comparator, NaturalOrder};
 use crate::{DoubleEndedHeap, Heap};
 
 const DEFAULT_HEAP_CAPACITY: usize = 16;
@@ -11,13 +10,12 @@ const DEFAULT_HEAP_CAPACITY: usize = 16;
 /// respectively. This gives `O(1)` access to both extrema and `O(log n)`
 /// insertion and removal.
 #[derive(Clone, Debug)]
-pub struct MinMaxBinaryArrayDoubleEndedHeap<T, C = NaturalOrder> {
+pub struct MinMaxBinaryArrayDoubleEndedHeap<T> {
     values: Vec<T>,
-    compare: C,
 }
 
 impl<T: Ord> MinMaxBinaryArrayDoubleEndedHeap<T> {
-    /// Creates an empty heap using the natural ordering of values.
+    /// Creates an empty heap.
     #[must_use]
     pub fn new() -> Self {
         Self::with_capacity(DEFAULT_HEAP_CAPACITY)
@@ -28,14 +26,15 @@ impl<T: Ord> MinMaxBinaryArrayDoubleEndedHeap<T> {
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
             values: Vec::with_capacity(capacity),
-            compare: NaturalOrder,
         }
     }
 
     /// Builds a min-max heap from `values` in linear time.
     #[must_use]
     pub fn from_vec(values: Vec<T>) -> Self {
-        Self::from_vec_by(values, NaturalOrder)
+        let mut heap = Self { values };
+        heap.heapify();
+        heap
     }
 }
 
@@ -45,40 +44,7 @@ impl<T: Ord> Default for MinMaxBinaryArrayDoubleEndedHeap<T> {
     }
 }
 
-impl<T, C> MinMaxBinaryArrayDoubleEndedHeap<T, C>
-where
-    C: Comparator<T>,
-{
-    /// Creates an empty heap ordered by `compare`.
-    #[must_use]
-    pub fn with_comparator(compare: C) -> Self {
-        Self::with_capacity_and_comparator(DEFAULT_HEAP_CAPACITY, compare)
-    }
-
-    /// Creates an empty heap with at least `capacity` value slots, ordered by
-    /// `compare`.
-    #[must_use]
-    pub fn with_capacity_and_comparator(capacity: usize, compare: C) -> Self {
-        Self {
-            values: Vec::with_capacity(capacity),
-            compare,
-        }
-    }
-
-    /// Builds a min-max heap from `values` in linear time using `compare`.
-    #[must_use]
-    pub fn from_vec_by(values: Vec<T>, compare: C) -> Self {
-        let mut heap = Self { values, compare };
-        heap.heapify();
-        heap
-    }
-
-    /// Returns the comparator used to order values.
-    #[must_use]
-    pub fn comparator(&self) -> &C {
-        &self.compare
-    }
-
+impl<T: Ord> MinMaxBinaryArrayDoubleEndedHeap<T> {
     /// Returns a reference to a maximum value, if present.
     #[must_use]
     pub fn peek_max(&self) -> Option<&T> {
@@ -113,7 +79,7 @@ where
             1 => Some(0),
             2 => Some(1),
             _ => {
-                if self.compare.compare(&self.values[2], &self.values[1]) == Ordering::Greater {
+                if self.values[2] > self.values[1] {
                     Some(2)
                 } else {
                     Some(1)
@@ -132,21 +98,13 @@ where
         }
         let parent = (index - 1) / 2;
         if Self::on_min_level(index) {
-            if self
-                .compare
-                .compare(&self.values[index], &self.values[parent])
-                == Ordering::Greater
-            {
+            if self.values[index] > self.values[parent] {
                 self.values.swap(index, parent);
                 self.bubble_up_max(parent);
             } else {
                 self.bubble_up_min(index);
             }
-        } else if self
-            .compare
-            .compare(&self.values[index], &self.values[parent])
-            == Ordering::Less
-        {
+        } else if self.values[index] < self.values[parent] {
             self.values.swap(index, parent);
             self.bubble_up_min(parent);
         } else {
@@ -157,11 +115,7 @@ where
     fn bubble_up_min(&mut self, mut index: usize) {
         while index >= 3 {
             let grandparent = (index - 3) / 4;
-            if self
-                .compare
-                .compare(&self.values[index], &self.values[grandparent])
-                != Ordering::Less
-            {
+            if self.values[index] >= self.values[grandparent] {
                 return;
             }
             self.values.swap(index, grandparent);
@@ -172,11 +126,7 @@ where
     fn bubble_up_max(&mut self, mut index: usize) {
         while index >= 3 {
             let grandparent = (index - 3) / 4;
-            if self
-                .compare
-                .compare(&self.values[index], &self.values[grandparent])
-                != Ordering::Greater
-            {
+            if self.values[index] <= self.values[grandparent] {
                 return;
             }
             self.values.swap(index, grandparent);
@@ -199,29 +149,17 @@ where
                 .and_then(|value| value.checked_add(3))
                 .unwrap_or(self.values.len());
             if candidate >= first_grandchild {
-                if self
-                    .compare
-                    .compare(&self.values[candidate], &self.values[index])
-                    != Ordering::Less
-                {
+                if self.values[candidate] >= self.values[index] {
                     return;
                 }
                 self.values.swap(index, candidate);
                 let parent = (candidate - 1) / 2;
-                if self
-                    .compare
-                    .compare(&self.values[candidate], &self.values[parent])
-                    == Ordering::Greater
-                {
+                if self.values[candidate] > self.values[parent] {
                     self.values.swap(candidate, parent);
                 }
                 index = candidate;
             } else {
-                if self
-                    .compare
-                    .compare(&self.values[candidate], &self.values[index])
-                    == Ordering::Less
-                {
+                if self.values[candidate] < self.values[index] {
                     self.values.swap(index, candidate);
                 }
                 return;
@@ -236,29 +174,17 @@ where
                 .and_then(|value| value.checked_add(3))
                 .unwrap_or(self.values.len());
             if candidate >= first_grandchild {
-                if self
-                    .compare
-                    .compare(&self.values[candidate], &self.values[index])
-                    != Ordering::Greater
-                {
+                if self.values[candidate] <= self.values[index] {
                     return;
                 }
                 self.values.swap(index, candidate);
                 let parent = (candidate - 1) / 2;
-                if self
-                    .compare
-                    .compare(&self.values[candidate], &self.values[parent])
-                    == Ordering::Less
-                {
+                if self.values[candidate] < self.values[parent] {
                     self.values.swap(candidate, parent);
                 }
                 index = candidate;
             } else {
-                if self
-                    .compare
-                    .compare(&self.values[candidate], &self.values[index])
-                    == Ordering::Greater
-                {
+                if self.values[candidate] > self.values[index] {
                     self.values.swap(index, candidate);
                 }
                 return;
@@ -280,11 +206,7 @@ where
                 .flat_map(|first| first..first.saturating_add(4)),
         );
         for candidate in candidates.filter(|&candidate| candidate < self.values.len()) {
-            if self
-                .compare
-                .compare(&self.values[candidate], &self.values[best])
-                == wanted
-            {
+            if self.values[candidate].cmp(&self.values[best]) == wanted {
                 best = candidate;
             }
         }
@@ -292,10 +214,7 @@ where
     }
 }
 
-impl<T, C> Heap<T> for MinMaxBinaryArrayDoubleEndedHeap<T, C>
-where
-    C: Comparator<T>,
-{
+impl<T: Ord> Heap<T> for MinMaxBinaryArrayDoubleEndedHeap<T> {
     fn push(&mut self, value: T) {
         self.values.push(value);
         self.fix_up(self.values.len() - 1);
@@ -325,10 +244,7 @@ where
     }
 }
 
-impl<T, C> DoubleEndedHeap<T> for MinMaxBinaryArrayDoubleEndedHeap<T, C>
-where
-    C: Comparator<T>,
-{
+impl<T: Ord> DoubleEndedHeap<T> for MinMaxBinaryArrayDoubleEndedHeap<T> {
     fn peek_max(&self) -> Option<&T> {
         Self::peek_max(self)
     }

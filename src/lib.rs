@@ -4,6 +4,9 @@
 //! [JHeaps](https://github.com/d-michail/jheaps). The public API follows Rust
 //! conventions: queries borrow their result and removing from an empty heap
 //! returns `None`.
+//! Heap keys must implement [`Ord`]. To select a different priority order,
+//! wrap keys in a newtype that implements [`Ord`] with the desired order (for
+//! example, reverse the comparison for max-oriented behavior).
 
 pub mod array;
 pub mod dag;
@@ -186,4 +189,24 @@ pub trait MeldableDoubleEndedAddressableHeap<K, V>: DoubleEndedAddressableHeap<K
 
     /// Melds `other` into this heap.
     fn meld(&mut self, other: &mut Self) -> Result<(), Self::MeldError>;
+}
+
+#[cfg(test)]
+pub(crate) mod test_support {
+    use core::cmp::Ordering;
+
+    #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+    pub(crate) struct ReverseKey(pub(crate) i32);
+
+    impl PartialOrd for ReverseKey {
+        fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+            Some(self.cmp(other))
+        }
+    }
+
+    impl Ord for ReverseKey {
+        fn cmp(&self, other: &Self) -> Ordering {
+            other.0.cmp(&self.0)
+        }
+    }
 }

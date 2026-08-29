@@ -1,6 +1,6 @@
 use core::cmp::Ordering;
 
-use crate::array::{Comparator, DecreaseKeyError, InvalidHandle, NaturalOrder};
+use crate::array::{DecreaseKeyError, InvalidHandle};
 use crate::{AddressableHeap, Heap, MeldableAddressableHeap, MeldableHeap};
 
 use super::core::{MeldError, NodeRef, TreeCore, TreeHandle};
@@ -10,16 +10,8 @@ use super::core::{MeldError, NodeRef, TreeCore, TreeHandle};
 /// Insert, minimum removal, deletion, and melding are amortized `O(log n)`;
 /// finding the minimum is `O(1)`. Key decreases use delete-and-reinsert and
 /// therefore have amortized `O(log n)` cost.
-pub struct SkewHeap<K, V = (), C = NaturalOrder> {
-    core: TreeCore<K, V, C>,
-}
-
-impl<K: Ord, V> SkewHeap<K, V> {
-    /// Creates an empty heap using the natural ordering of keys.
-    #[must_use]
-    pub fn new() -> Self {
-        Self::with_comparator(NaturalOrder)
-    }
+pub struct SkewHeap<K, V = ()> {
+    core: TreeCore<K, V>,
 }
 
 impl<K: Ord, V> Default for SkewHeap<K, V> {
@@ -28,22 +20,13 @@ impl<K: Ord, V> Default for SkewHeap<K, V> {
     }
 }
 
-impl<K, V, C> SkewHeap<K, V, C>
-where
-    C: Comparator<K>,
-{
-    /// Creates an empty heap ordered by `compare`.
+impl<K: Ord, V> SkewHeap<K, V> {
+    /// Creates an empty heap.
     #[must_use]
-    pub fn with_comparator(compare: C) -> Self {
+    pub fn new() -> Self {
         Self {
-            core: TreeCore::new(compare),
+            core: TreeCore::new(),
         }
-    }
-
-    /// Returns the comparator used to order keys.
-    #[must_use]
-    pub fn comparator(&self) -> &C {
-        self.core.comparator()
     }
 
     /// Inserts an entry and returns its checked handle.
@@ -186,10 +169,7 @@ where
     }
 }
 
-impl<K, C> SkewHeap<K, (), C>
-where
-    C: Comparator<K>,
-{
+impl<K: Ord> SkewHeap<K, ()> {
     /// Inserts a key into this value-less heap.
     pub fn push(&mut self, key: K) {
         self.try_insert(key, ())
@@ -208,10 +188,7 @@ where
     }
 }
 
-impl<K, V, C> SkewHeap<K, V, C>
-where
-    C: Comparator<K> + PartialEq,
-{
+impl<K: Ord, V> SkewHeap<K, V> {
     /// Melds `other` into this heap.
     ///
     /// The donor is consumed on success. Its handles remain valid when passed
@@ -222,9 +199,6 @@ where
         }
         if !other.core.active {
             return Err(MeldError::DonorConsumed);
-        }
-        if self.core.compare != other.core.compare {
-            return Err(MeldError::IncompatibleComparator);
         }
         let other_root = other.core.root;
         self.core.take_arenas_from(&mut other.core);
@@ -237,10 +211,7 @@ where
     }
 }
 
-impl<K, V, C> AddressableHeap<K, V> for SkewHeap<K, V, C>
-where
-    C: Comparator<K>,
-{
+impl<K: Ord, V> AddressableHeap<K, V> for SkewHeap<K, V> {
     type Handle = TreeHandle;
 
     fn push(&mut self, key: K, value: V) -> Self::Handle {
@@ -285,10 +256,7 @@ where
     }
 }
 
-impl<T, C> Heap<T> for SkewHeap<T, (), C>
-where
-    C: Comparator<T>,
-{
+impl<T: Ord> Heap<T> for SkewHeap<T, ()> {
     fn push(&mut self, value: T) {
         Self::push(self, value);
     }
@@ -310,10 +278,7 @@ where
     }
 }
 
-impl<K, V, C> MeldableAddressableHeap<K, V> for SkewHeap<K, V, C>
-where
-    C: Comparator<K> + PartialEq,
-{
+impl<K: Ord, V> MeldableAddressableHeap<K, V> for SkewHeap<K, V> {
     type MeldError = MeldError;
 
     fn meld(&mut self, other: &mut Self) -> Result<(), Self::MeldError> {
@@ -321,10 +286,7 @@ where
     }
 }
 
-impl<T, C> MeldableHeap<T> for SkewHeap<T, (), C>
-where
-    C: Comparator<T> + PartialEq,
-{
+impl<T: Ord> MeldableHeap<T> for SkewHeap<T, ()> {
     type MeldError = MeldError;
 
     fn meld(&mut self, other: &mut Self) -> Result<(), Self::MeldError> {

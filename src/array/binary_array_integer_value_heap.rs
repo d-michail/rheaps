@@ -4,7 +4,7 @@ const DEFAULT_HEAP_CAPACITY: usize = 16;
 
 /// An array-backed min-heap with `i32` keys and associated values.
 ///
-/// Keys are stored directly rather than behind a generic comparator. Insertion
+/// Keys are stored directly. Insertion
 /// and removal are `O(log n)` and construction from a vector is `O(n)`.
 #[derive(Clone, Debug)]
 pub struct BinaryArrayIntegerValueHeap<V> {

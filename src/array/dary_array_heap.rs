@@ -1,8 +1,6 @@
-use core::cmp::Ordering;
 use core::fmt;
 
 use crate::Heap;
-use crate::array::{Comparator, NaturalOrder};
 
 const DEFAULT_HEAP_CAPACITY: usize = 16;
 
@@ -27,10 +25,9 @@ impl std::error::Error for InvalidDegree {}
 /// Larger degrees reduce the height of the heap, making insertion cheaper, but
 /// require more comparisons while removing a minimum value.
 #[derive(Clone, Debug)]
-pub struct DaryArrayHeap<T, C = NaturalOrder> {
+pub struct DaryArrayHeap<T> {
     values: Vec<T>,
     degree: usize,
-    compare: C,
 }
 
 impl<T: Ord> DaryArrayHeap<T> {
@@ -41,12 +38,19 @@ impl<T: Ord> DaryArrayHeap<T> {
 
     /// Creates an empty heap with at least `capacity` value slots.
     pub fn with_capacity(degree: usize, capacity: usize) -> Result<Self, InvalidDegree> {
-        Self::with_capacity_and_comparator(degree, capacity, NaturalOrder)
+        Self::validate_degree(degree)?;
+        Ok(Self {
+            values: Vec::with_capacity(capacity),
+            degree,
+        })
     }
 
     /// Builds a heap from `values` in linear time.
     pub fn from_vec(degree: usize, values: Vec<T>) -> Result<Self, InvalidDegree> {
-        Self::from_vec_by(degree, values, NaturalOrder)
+        Self::validate_degree(degree)?;
+        let mut heap = Self { values, degree };
+        heap.heapify();
+        Ok(heap)
     }
 }
 
@@ -56,52 +60,11 @@ impl<T: Ord> Default for DaryArrayHeap<T> {
     }
 }
 
-impl<T, C> DaryArrayHeap<T, C>
-where
-    C: Comparator<T>,
-{
-    /// Creates an empty heap ordered by `compare`.
-    pub fn with_comparator(degree: usize, compare: C) -> Result<Self, InvalidDegree> {
-        Self::with_capacity_and_comparator(degree, DEFAULT_HEAP_CAPACITY, compare)
-    }
-
-    /// Creates an empty heap with at least `capacity` value slots, ordered by
-    /// `compare`.
-    pub fn with_capacity_and_comparator(
-        degree: usize,
-        capacity: usize,
-        compare: C,
-    ) -> Result<Self, InvalidDegree> {
-        Self::validate_degree(degree)?;
-        Ok(Self {
-            values: Vec::with_capacity(capacity),
-            degree,
-            compare,
-        })
-    }
-
-    /// Builds a heap from `values` in linear time using `compare`.
-    pub fn from_vec_by(degree: usize, values: Vec<T>, compare: C) -> Result<Self, InvalidDegree> {
-        Self::validate_degree(degree)?;
-        let mut heap = Self {
-            values,
-            degree,
-            compare,
-        };
-        heap.heapify();
-        Ok(heap)
-    }
-
+impl<T: Ord> DaryArrayHeap<T> {
     /// Returns the number of children per node.
     #[must_use]
     pub const fn degree(&self) -> usize {
         self.degree
-    }
-
-    /// Returns the comparator used to order values.
-    #[must_use]
-    pub fn comparator(&self) -> &C {
-        &self.compare
     }
 
     /// Consumes the heap and returns its backing storage in heap order.
@@ -127,11 +90,7 @@ where
     fn sift_up(&mut self, mut index: usize) {
         while index > 0 {
             let parent = (index - 1) / self.degree;
-            if self
-                .compare
-                .compare(&self.values[parent], &self.values[index])
-                != Ordering::Greater
-            {
+            if self.values[parent] <= self.values[index] {
                 return;
             }
             self.values.swap(parent, index);
@@ -154,20 +113,12 @@ where
                 .min(self.values.len());
             let mut smallest = first_child;
             for child in first_child + 1..end {
-                if self
-                    .compare
-                    .compare(&self.values[child], &self.values[smallest])
-                    == Ordering::Less
-                {
+                if self.values[child] < self.values[smallest] {
                     smallest = child;
                 }
             }
 
-            if self
-                .compare
-                .compare(&self.values[index], &self.values[smallest])
-                != Ordering::Greater
-            {
+            if self.values[index] <= self.values[smallest] {
                 return;
             }
             self.values.swap(index, smallest);
@@ -176,10 +127,7 @@ where
     }
 }
 
-impl<T, C> Heap<T> for DaryArrayHeap<T, C>
-where
-    C: Comparator<T>,
-{
+impl<T: Ord> Heap<T> for DaryArrayHeap<T> {
     fn push(&mut self, value: T) {
         self.values.push(value);
         self.sift_up(self.values.len() - 1);

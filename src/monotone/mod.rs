@@ -1,4 +1,4 @@
-//! Monotone radix heaps for unsigned integers, finite floating-point values,
+//! Monotone radix heaps for unsigned integers, finite floating-point keys,
 //! and arbitrary-sized unsigned integers.
 //!
 //! A radix heap is efficient when items are removed in nondecreasing key
@@ -12,12 +12,8 @@
 //! heap-specific precondition is violated. Prefer the fallible inherent
 //! methods when the key is not already known to satisfy the constraint.
 //!
-//! Floating-point heaps accept only finite, non-negative range bounds and
-//! keys. They order valid keys with [`f64::total_cmp`], matching Java
-//! `Double.compare`'s treatment of signed zero while avoiding partial-order
-//! float comparisons.
-//! Radix bucket placement requires this fixed natural ordering, so these heaps
-//! do not accept a custom [`crate::array::Comparator`].
+//! Floating-point heaps use [`FiniteF64`], which rejects NaN and infinities
+//! and implements the total ordering of [`f64::total_cmp`].
 
 use core::cmp::Ordering;
 use core::fmt;
@@ -30,13 +26,94 @@ use crate::{AddressableHeap, Heap};
 
 static NEXT_HEAP_ID: AtomicU64 = AtomicU64::new(1);
 
+/// An error returned when constructing a [`FiniteF64`] from a non-finite
+/// floating-point value.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct NonFiniteF64;
+
+impl fmt::Display for NonFiniteF64 {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str("floating-point key must be finite")
+    }
+}
+
+impl std::error::Error for NonFiniteF64 {}
+
+/// A finite `f64` with a total order.
+///
+/// Its order is [`f64::total_cmp`], so negative zero sorts before positive
+/// zero. Construct one with [`FiniteF64::new`] or [`TryFrom<f64>`].
+#[derive(Clone, Copy, Debug)]
+pub struct FiniteF64(f64);
+
+impl FiniteF64 {
+    /// Creates a finite key, rejecting NaN and infinities.
+    pub fn new(value: f64) -> Result<Self, NonFiniteF64> {
+        if value.is_finite() {
+            Ok(Self(value))
+        } else {
+            Err(NonFiniteF64)
+        }
+    }
+
+    /// Returns the wrapped floating-point value.
+    #[must_use]
+    pub const fn as_f64(self) -> f64 {
+        self.0
+    }
+
+    /// Consumes the key and returns the wrapped floating-point value.
+    #[must_use]
+    pub const fn into_inner(self) -> f64 {
+        self.0
+    }
+}
+
+impl TryFrom<f64> for FiniteF64 {
+    type Error = NonFiniteF64;
+
+    fn try_from(value: f64) -> Result<Self, Self::Error> {
+        Self::new(value)
+    }
+}
+
+impl From<FiniteF64> for f64 {
+    fn from(value: FiniteF64) -> Self {
+        value.0
+    }
+}
+
+impl PartialEq for FiniteF64 {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.to_bits() == other.0.to_bits()
+    }
+}
+
+impl Eq for FiniteF64 {}
+
+impl PartialOrd for FiniteF64 {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for FiniteF64 {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.0.total_cmp(&other.0)
+    }
+}
+
+impl core::hash::Hash for FiniteF64 {
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
+        self.0.to_bits().hash(state);
+    }
+}
+
 /// A key or bounds error reported by a monotone radix heap.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum RadixHeapError {
     /// The supplied lower and upper bounds do not define a supported range.
     InvalidRange,
-    /// A floating-point key or bound was infinite or NaN.
-    NonFiniteKey,
     /// A key was outside the bounds supplied when constructing the heap.
     KeyOutOfRange,
     /// A key was less than the most recently removed key.
@@ -50,9 +127,6 @@ impl fmt::Display for RadixHeapError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::InvalidRange => formatter.write_str("invalid radix heap key range"),
-            Self::NonFiniteKey => {
-                formatter.write_str("radix heap floating-point keys must be finite")
-            }
             Self::KeyOutOfRange => {
                 formatter.write_str("key is outside the heap's configured range")
             }
@@ -104,8 +178,7 @@ impl From<RadixDecreaseKeyError> for DecreaseKeyError {
     }
 }
 
-trait RadixKey: Clone {
-    fn compare(&self, other: &Self) -> Ordering;
+trait RadixKey: Ord + Clone {
     fn msd(&self, other: &Self) -> usize;
     fn bucket_count(minimum: &Self, maximum: &Self) -> Result<usize, RadixHeapError>;
 
@@ -116,7 +189,7 @@ trait RadixKey: Clone {
     fn validate_bounds(minimum: &Self, maximum: &Self) -> Result<(), RadixHeapError> {
         minimum.validate()?;
         maximum.validate()?;
-        if minimum.compare(maximum) == Ordering::Greater {
+        if minimum > maximum {
             return Err(RadixHeapError::InvalidRange);
         }
         Ok(())
@@ -124,10 +197,6 @@ trait RadixKey: Clone {
 }
 
 impl RadixKey for u32 {
-    fn compare(&self, other: &Self) -> Ordering {
-        self.cmp(other)
-    }
-
     fn msd(&self, other: &Self) -> usize {
         (u32::BITS - 1 - (*self ^ *other).leading_zeros()) as usize
     }
@@ -139,10 +208,6 @@ impl RadixKey for u32 {
 }
 
 impl RadixKey for u64 {
-    fn compare(&self, other: &Self) -> Ordering {
-        self.cmp(other)
-    }
-
     fn msd(&self, other: &Self) -> usize {
         (u64::BITS - 1 - (*self ^ *other).leading_zeros()) as usize
     }
@@ -154,10 +219,6 @@ impl RadixKey for u64 {
 }
 
 impl RadixKey for BigUint {
-    fn compare(&self, other: &Self) -> Ordering {
-        self.cmp(other)
-    }
-
     fn msd(&self, other: &Self) -> usize {
         let difference = self ^ other;
         usize::try_from(difference.bits() - 1).expect("key bits fit in addressable memory")
@@ -172,8 +233,8 @@ impl RadixKey for BigUint {
     }
 }
 
-fn float_rank(key: f64) -> u64 {
-    let bits = key.to_bits();
+fn float_rank(key: FiniteF64) -> u64 {
+    let bits = key.0.to_bits();
     if bits >> 63 == 0 {
         bits | (1_u64 << 63)
     } else {
@@ -181,11 +242,7 @@ fn float_rank(key: f64) -> u64 {
     }
 }
 
-impl RadixKey for f64 {
-    fn compare(&self, other: &Self) -> Ordering {
-        self.total_cmp(other)
-    }
-
+impl RadixKey for FiniteF64 {
     fn msd(&self, other: &Self) -> usize {
         (u64::BITS - 1 - (float_rank(*self) ^ float_rank(*other)).leading_zeros()) as usize
     }
@@ -195,18 +252,8 @@ impl RadixKey for f64 {
         Ok((u64::BITS - range.leading_zeros()) as usize + 2)
     }
 
-    fn validate(&self) -> Result<(), RadixHeapError> {
-        if self.is_finite() {
-            Ok(())
-        } else {
-            Err(RadixHeapError::NonFiniteKey)
-        }
-    }
-
     fn validate_bounds(minimum: &Self, maximum: &Self) -> Result<(), RadixHeapError> {
-        minimum.validate()?;
-        maximum.validate()?;
-        if *minimum < 0.0 || minimum.total_cmp(maximum) == Ordering::Greater {
+        if minimum.0 < 0.0 || minimum > maximum {
             return Err(RadixHeapError::InvalidRange);
         }
         Ok(())
@@ -238,19 +285,17 @@ impl<K: RadixKey> RadixHeapCore<K> {
 
     fn check_key(&self, key: &K) -> Result<(), RadixHeapError> {
         key.validate()?;
-        if key.compare(&self.minimum_key) == Ordering::Less
-            || key.compare(&self.maximum_key) == Ordering::Greater
-        {
+        if key < &self.minimum_key || key > &self.maximum_key {
             return Err(RadixHeapError::KeyOutOfRange);
         }
-        if key.compare(&self.last_deleted_key) == Ordering::Less {
+        if key < &self.last_deleted_key {
             return Err(RadixHeapError::MonotonicityViolation);
         }
         Ok(())
     }
 
     fn bucket_for(&self, key: &K) -> usize {
-        if key.compare(&self.last_deleted_key) == Ordering::Equal {
+        if key == &self.last_deleted_key {
             0
         } else {
             1 + key.msd(&self.last_deleted_key).min(self.buckets.len() - 2)
@@ -260,9 +305,7 @@ impl<K: RadixKey> RadixHeapCore<K> {
     fn try_push(&mut self, key: K) -> Result<(), RadixHeapError> {
         self.check_key(&key)?;
         let replace_minimum = match self.current_minimum {
-            Some((bucket, position)) => {
-                key.compare(&self.buckets[bucket][position]) == Ordering::Less
-            }
+            Some((bucket, position)) => key < self.buckets[bucket][position],
             None => true,
         };
         let bucket = self.bucket_for(&key);
@@ -309,9 +352,7 @@ impl<K: RadixKey> RadixHeapCore<K> {
             .expect("a non-empty radix heap has a non-empty bucket");
         let mut position = 0;
         for candidate in 1..self.buckets[bucket].len() {
-            if self.buckets[bucket][candidate].compare(&self.buckets[bucket][position])
-                == Ordering::Less
-            {
+            if self.buckets[bucket][candidate] < self.buckets[bucket][position] {
                 position = candidate;
             }
         }
@@ -382,19 +423,17 @@ impl<K: RadixKey, V> AddressableRadixHeapCore<K, V> {
 
     fn check_key(&self, key: &K) -> Result<(), RadixHeapError> {
         key.validate()?;
-        if key.compare(&self.minimum_key) == Ordering::Less
-            || key.compare(&self.maximum_key) == Ordering::Greater
-        {
+        if key < &self.minimum_key || key > &self.maximum_key {
             return Err(RadixHeapError::KeyOutOfRange);
         }
-        if key.compare(&self.last_deleted_key) == Ordering::Less {
+        if key < &self.last_deleted_key {
             return Err(RadixHeapError::MonotonicityViolation);
         }
         Ok(())
     }
 
     fn bucket_for(&self, key: &K) -> usize {
-        if key.compare(&self.last_deleted_key) == Ordering::Equal {
+        if key == &self.last_deleted_key {
             0
         } else {
             1 + key.msd(&self.last_deleted_key).min(self.buckets.len() - 2)
@@ -425,10 +464,7 @@ impl<K: RadixKey, V> AddressableRadixHeapCore<K, V> {
     fn try_push(&mut self, key: K, value: V) -> Result<RadixHandle, RadixHeapError> {
         self.check_key(&key)?;
         let replace_minimum = match self.current_minimum {
-            Some(slot) => {
-                key.compare(&self.slots[slot].entry.as_ref().expect("live minimum").key)
-                    == Ordering::Less
-            }
+            Some(slot) => key < self.slots[slot].entry.as_ref().expect("live minimum").key,
             None => true,
         };
         let bucket = self.bucket_for(&key);
@@ -579,7 +615,7 @@ impl<K: RadixKey, V> AddressableRadixHeapCore<K, V> {
                 .as_ref()
                 .expect("bucket entries are live")
                 .key;
-            if candidate_key.compare(minimum_key) == Ordering::Less {
+            if candidate_key < minimum_key {
                 minimum = candidate;
             }
         }
@@ -606,13 +642,12 @@ impl<K: RadixKey, V> AddressableRadixHeapCore<K, V> {
             .validate(handle)
             .map_err(RadixDecreaseKeyError::InvalidHandle)?;
         self.check_key(&key).map_err(RadixDecreaseKeyError::Radix)?;
-        if key.compare(
-            &self.slots[slot]
+        if key
+            > self.slots[slot]
                 .entry
                 .as_ref()
                 .expect("validated entry")
-                .key,
-        ) == Ordering::Greater
+                .key
         {
             return Err(RadixDecreaseKeyError::NotDecreased);
         }
@@ -625,13 +660,11 @@ impl<K: RadixKey, V> AddressableRadixHeapCore<K, V> {
             .bucket;
         let replace_minimum = match self.current_minimum {
             Some(minimum) if minimum != slot => {
-                key.compare(
-                    &self.slots[minimum]
-                        .entry
-                        .as_ref()
-                        .expect("live minimum")
-                        .key,
-                ) == Ordering::Less
+                key < self.slots[minimum]
+                    .entry
+                    .as_ref()
+                    .expect("live minimum")
+                    .key
             }
             _ => true,
         };
@@ -816,8 +849,8 @@ define_radix_heap!(
 define_radix_heap!(LongRadixHeap, u64, "A monotone radix heap for `u64` keys.");
 define_radix_heap!(
     DoubleRadixHeap,
-    f64,
-    "A monotone radix heap for finite, non-negative `f64` keys."
+    FiniteF64,
+    "A monotone radix heap for finite, non-negative [`FiniteF64`] keys."
 );
 define_radix_heap!(
     BigIntegerRadixHeap,
@@ -1037,8 +1070,8 @@ define_addressable_radix_heap!(
 );
 define_addressable_radix_heap!(
     DoubleRadixAddressableHeap,
-    f64,
-    "An addressable monotone radix heap for finite, non-negative `f64` keys."
+    FiniteF64,
+    "An addressable monotone radix heap for finite, non-negative [`FiniteF64`] keys."
 );
 define_addressable_radix_heap!(
     BigIntegerRadixAddressableHeap,

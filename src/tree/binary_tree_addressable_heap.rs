@@ -1,7 +1,7 @@
 use core::cmp::Ordering;
 
 use crate::AddressableHeap;
-use crate::array::{Comparator, DecreaseKeyError, InvalidHandle, NaturalOrder};
+use crate::array::{DecreaseKeyError, InvalidHandle};
 
 use super::core::{TreeHandle, next_domain_id};
 
@@ -27,8 +27,7 @@ struct Position {
 /// Insert, minimum removal, deletion, and key decreases are `O(log n)`;
 /// looking up the minimum is `O(1)`. Nodes form an explicit binary tree while
 /// entries are moved between nodes, preserving the identity of their handles.
-pub struct BinaryTreeAddressableHeap<K, V = (), C = NaturalOrder> {
-    compare: C,
+pub struct BinaryTreeAddressableHeap<K, V = ()> {
     entries: Vec<EntrySlot<K, V>>,
     free_entries: Vec<usize>,
     positions: Vec<Position>,
@@ -36,10 +35,15 @@ pub struct BinaryTreeAddressableHeap<K, V = (), C = NaturalOrder> {
 }
 
 impl<K: Ord, V> BinaryTreeAddressableHeap<K, V> {
-    /// Creates an empty heap using the natural ordering of keys.
+    /// Creates an empty heap.
     #[must_use]
     pub fn new() -> Self {
-        Self::with_comparator(NaturalOrder)
+        Self {
+            entries: Vec::new(),
+            free_entries: Vec::new(),
+            positions: Vec::new(),
+            domain: next_domain_id(),
+        }
     }
 }
 
@@ -49,28 +53,7 @@ impl<K: Ord, V> Default for BinaryTreeAddressableHeap<K, V> {
     }
 }
 
-impl<K, V, C> BinaryTreeAddressableHeap<K, V, C>
-where
-    C: Comparator<K>,
-{
-    /// Creates an empty heap ordered by `compare`.
-    #[must_use]
-    pub fn with_comparator(compare: C) -> Self {
-        Self {
-            compare,
-            entries: Vec::new(),
-            free_entries: Vec::new(),
-            positions: Vec::new(),
-            domain: next_domain_id(),
-        }
-    }
-
-    /// Returns the comparator used to order keys.
-    #[must_use]
-    pub fn comparator(&self) -> &C {
-        &self.compare
-    }
-
+impl<K: Ord, V> BinaryTreeAddressableHeap<K, V> {
     /// Inserts an entry and returns a checked handle.
     pub fn push(&mut self, key: K, value: V) -> TreeHandle {
         let position = self.positions.len();
@@ -150,7 +133,7 @@ where
         let entry = self
             .validate(handle)
             .map_err(DecreaseKeyError::InvalidHandle)?;
-        if self.compare.compare(&key, &self.entry(entry).key) == Ordering::Greater {
+        if key > self.entry(entry).key {
             return Err(DecreaseKeyError::NotDecreased);
         }
         let position = self.entry(entry).position;
@@ -335,17 +318,13 @@ where
     }
 
     fn compare_positions(&self, left: usize, right: usize) -> Ordering {
-        self.compare.compare(
-            &self.entry(self.positions[left].entry).key,
-            &self.entry(self.positions[right].entry).key,
-        )
+        self.entry(self.positions[left].entry)
+            .key
+            .cmp(&self.entry(self.positions[right].entry).key)
     }
 }
 
-impl<K, V, C> AddressableHeap<K, V> for BinaryTreeAddressableHeap<K, V, C>
-where
-    C: Comparator<K>,
-{
+impl<K: Ord, V> AddressableHeap<K, V> for BinaryTreeAddressableHeap<K, V> {
     type Handle = TreeHandle;
 
     fn push(&mut self, key: K, value: V) -> Self::Handle {

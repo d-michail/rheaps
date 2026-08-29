@@ -1,6 +1,6 @@
 use core::cmp::Ordering;
 
-use crate::array::{Comparator, DecreaseKeyError, InvalidHandle, NaturalOrder};
+use crate::array::{DecreaseKeyError, InvalidHandle};
 use crate::{AddressableHeap, Heap, MeldableAddressableHeap, MeldableHeap};
 
 use super::core::{MeldError, NodeRef, TreeCore, TreeHandle};
@@ -10,16 +10,8 @@ use super::core::{MeldError, NodeRef, TreeCore, TreeHandle};
 /// Insert, minimum removal, key decrease, and melding are amortized
 /// `O(log n)`; looking up the minimum is `O(1)`. This is the classic two-pass
 /// pairing-heap algorithm, not an array-backed priority queue.
-pub struct PairingHeap<K, V = (), C = NaturalOrder> {
-    core: TreeCore<K, V, C>,
-}
-
-impl<K: Ord, V> PairingHeap<K, V> {
-    /// Creates an empty heap using the natural ordering of keys.
-    #[must_use]
-    pub fn new() -> Self {
-        Self::with_comparator(NaturalOrder)
-    }
+pub struct PairingHeap<K, V = ()> {
+    core: TreeCore<K, V>,
 }
 
 impl<K: Ord, V> Default for PairingHeap<K, V> {
@@ -28,22 +20,13 @@ impl<K: Ord, V> Default for PairingHeap<K, V> {
     }
 }
 
-impl<K, V, C> PairingHeap<K, V, C>
-where
-    C: Comparator<K>,
-{
-    /// Creates an empty heap ordered by `compare`.
+impl<K: Ord, V> PairingHeap<K, V> {
+    /// Creates an empty heap.
     #[must_use]
-    pub fn with_comparator(compare: C) -> Self {
+    pub fn new() -> Self {
         Self {
-            core: TreeCore::new(compare),
+            core: TreeCore::new(),
         }
-    }
-
-    /// Returns the comparator used to order keys.
-    #[must_use]
-    pub fn comparator(&self) -> &C {
-        self.core.comparator()
     }
 
     /// Inserts an entry and returns its checked handle.
@@ -197,10 +180,7 @@ where
     }
 }
 
-impl<K, C> PairingHeap<K, (), C>
-where
-    C: Comparator<K>,
-{
+impl<K: Ord> PairingHeap<K, ()> {
     /// Inserts a key into this value-less heap.
     pub fn push(&mut self, key: K) {
         self.try_insert(key, ())
@@ -219,10 +199,7 @@ where
     }
 }
 
-impl<K, V, C> PairingHeap<K, V, C>
-where
-    C: Comparator<K> + PartialEq,
-{
+impl<K: Ord, V> PairingHeap<K, V> {
     /// Melds `other` into this heap, consuming the donor on success.
     pub fn meld(&mut self, other: &mut Self) -> Result<(), MeldError> {
         if !self.core.active {
@@ -230,9 +207,6 @@ where
         }
         if !other.core.active {
             return Err(MeldError::DonorConsumed);
-        }
-        if self.core.compare != other.core.compare {
-            return Err(MeldError::IncompatibleComparator);
         }
         let other_root = other.core.root;
         self.core.take_arenas_from(&mut other.core);
@@ -245,10 +219,7 @@ where
     }
 }
 
-impl<K, V, C> AddressableHeap<K, V> for PairingHeap<K, V, C>
-where
-    C: Comparator<K>,
-{
+impl<K: Ord, V> AddressableHeap<K, V> for PairingHeap<K, V> {
     type Handle = TreeHandle;
 
     fn push(&mut self, key: K, value: V) -> Self::Handle {
@@ -293,10 +264,7 @@ where
     }
 }
 
-impl<T, C> Heap<T> for PairingHeap<T, (), C>
-where
-    C: Comparator<T>,
-{
+impl<T: Ord> Heap<T> for PairingHeap<T, ()> {
     fn push(&mut self, value: T) {
         Self::push(self, value);
     }
@@ -318,10 +286,7 @@ where
     }
 }
 
-impl<K, V, C> MeldableAddressableHeap<K, V> for PairingHeap<K, V, C>
-where
-    C: Comparator<K> + PartialEq,
-{
+impl<K: Ord, V> MeldableAddressableHeap<K, V> for PairingHeap<K, V> {
     type MeldError = MeldError;
 
     fn meld(&mut self, other: &mut Self) -> Result<(), Self::MeldError> {
@@ -329,10 +294,7 @@ where
     }
 }
 
-impl<T, C> MeldableHeap<T> for PairingHeap<T, (), C>
-where
-    C: Comparator<T> + PartialEq,
-{
+impl<T: Ord> MeldableHeap<T> for PairingHeap<T, ()> {
     type MeldError = MeldError;
 
     fn meld(&mut self, other: &mut Self) -> Result<(), Self::MeldError> {

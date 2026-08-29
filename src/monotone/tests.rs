@@ -1,17 +1,20 @@
 //! Shared conformance fixtures for every monotone radix heap variant.
 
-use core::cmp::Ordering;
 use core::fmt::Debug;
 
 use super::{
     BigIntegerRadixAddressableHeap, BigIntegerRadixHeap, BigUint, DoubleRadixAddressableHeap,
-    DoubleRadixHeap, IntegerRadixAddressableHeap, IntegerRadixHeap, LongRadixAddressableHeap,
-    LongRadixHeap, RadixDecreaseKeyError, RadixHandle, RadixHeapError,
+    DoubleRadixHeap, FiniteF64, IntegerRadixAddressableHeap, IntegerRadixHeap,
+    LongRadixAddressableHeap, LongRadixHeap, RadixDecreaseKeyError, RadixHandle, RadixHeapError,
 };
 use crate::array::InvalidHandle;
 use crate::{AddressableHeap, Heap};
 
 const RANDOM_VALUES: usize = 4_000;
+
+fn finite(value: f64) -> FiniteF64 {
+    FiniteF64::new(value).expect("test value is finite")
+}
 
 struct JavaRandom {
     seed: u64,
@@ -74,21 +77,20 @@ macro_rules! impl_value_fixture {
 
 impl_value_fixture!(IntegerRadixHeap, u32);
 impl_value_fixture!(LongRadixHeap, u64);
-impl_value_fixture!(DoubleRadixHeap, f64);
+impl_value_fixture!(DoubleRadixHeap, FiniteF64);
 impl_value_fixture!(BigIntegerRadixHeap, BigUint);
 
-fn exercise_value_heap<H, K, F>(mut heap: H, values: Vec<K>, compare: F)
+fn exercise_value_heap<H, K>(mut heap: H, values: Vec<K>)
 where
     H: ValueFixture<K>,
-    K: Clone + Debug + PartialEq,
-    F: Fn(&K, &K) -> Ordering,
+    K: Clone + Debug + Ord,
 {
     assert_eq!(heap.fixture_len(), 0);
     assert_eq!(heap.peek_key(), None);
     assert_eq!(heap.pop_key(), None);
 
     let mut expected = values.clone();
-    expected.sort_by(&compare);
+    expected.sort();
     for value in values {
         heap.checked_push(value).unwrap();
     }
@@ -154,21 +156,20 @@ macro_rules! impl_addressable_fixture {
 
 impl_addressable_fixture!(IntegerRadixAddressableHeap<usize>, u32);
 impl_addressable_fixture!(LongRadixAddressableHeap<usize>, u64);
-impl_addressable_fixture!(DoubleRadixAddressableHeap<usize>, f64);
+impl_addressable_fixture!(DoubleRadixAddressableHeap<usize>, FiniteF64);
 impl_addressable_fixture!(BigIntegerRadixAddressableHeap<usize>, BigUint);
 
-fn exercise_addressable_heap<H, K, F>(mut heap: H, values: Vec<K>, compare: F)
+fn exercise_addressable_heap<H, K>(mut heap: H, values: Vec<K>)
 where
     H: AddressableFixture<K>,
-    K: Clone + Debug + PartialEq,
-    F: Fn(&K, &K) -> Ordering,
+    K: Clone + Debug + Ord,
 {
     assert_eq!(heap.fixture_len(), 0);
     assert_eq!(heap.fixture_peek(), None);
     assert_eq!(heap.fixture_pop(), None);
 
     let mut expected = values.clone();
-    expected.sort_by(&compare);
+    expected.sort();
     let mut first_handle = None;
     for (value, key) in values.into_iter().enumerate() {
         let handle = heap.checked_push(key, value).unwrap();
@@ -209,29 +210,25 @@ fn value_radix_heaps_sort_random_and_boundary_keys() {
         .chain(core::iter::once(u32::MAX))
         .chain((0..RANDOM_VALUES).map(|_| (random.next_u64() % 100_001) as u32))
         .collect();
-    exercise_value_heap(
-        IntegerRadixHeap::new(0, u32::MAX).unwrap(),
-        integers,
-        u32::cmp,
-    );
+    exercise_value_heap(IntegerRadixHeap::new(0, u32::MAX).unwrap(), integers);
 
     let mut random = JavaRandom::new(2);
     let longs = core::iter::once(0)
         .chain(core::iter::once(u64::MAX))
         .chain((0..RANDOM_VALUES).map(|_| random.next_u64() % 100_001))
         .collect();
-    exercise_value_heap(LongRadixHeap::new(0, u64::MAX).unwrap(), longs, u64::cmp);
+    exercise_value_heap(LongRadixHeap::new(0, u64::MAX).unwrap(), longs);
 
     let mut random = JavaRandom::new(3);
     let doubles = core::iter::once(0.0)
         .chain(core::iter::once(f64::MAX))
         .chain(core::iter::once(f64::MIN_POSITIVE))
         .chain((0..RANDOM_VALUES).map(|_| (random.next_u64() % 100_001) as f64 / 10.0))
+        .map(finite)
         .collect();
     exercise_value_heap(
-        DoubleRadixHeap::new(0.0, f64::MAX).unwrap(),
+        DoubleRadixHeap::new(finite(0.0), finite(f64::MAX)).unwrap(),
         doubles,
-        f64::total_cmp,
     );
 
     let minimum = (BigUint::from(1_u8) << 130_usize) + BigUint::from(7_u8);
@@ -247,7 +244,6 @@ fn value_radix_heaps_sort_random_and_boundary_keys() {
     exercise_value_heap(
         BigIntegerRadixHeap::new(minimum, maximum).unwrap(),
         big_integers,
-        BigUint::cmp,
     );
 }
 
@@ -260,27 +256,22 @@ fn addressable_radix_heaps_sort_random_and_invalidate_handles() {
     exercise_addressable_heap(
         IntegerRadixAddressableHeap::new(0, 100_000).unwrap(),
         integers,
-        u32::cmp,
     );
 
     let mut random = JavaRandom::new(6);
     let longs = core::iter::once(0)
         .chain((0..RANDOM_VALUES).map(|_| random.next_u64() % 100_001))
         .collect();
-    exercise_addressable_heap(
-        LongRadixAddressableHeap::new(0, 100_000).unwrap(),
-        longs,
-        u64::cmp,
-    );
+    exercise_addressable_heap(LongRadixAddressableHeap::new(0, 100_000).unwrap(), longs);
 
     let mut random = JavaRandom::new(7);
     let doubles = core::iter::once(0.0)
         .chain((0..RANDOM_VALUES).map(|_| (random.next_u64() % 100_001) as f64 / 10.0))
+        .map(finite)
         .collect();
     exercise_addressable_heap(
-        DoubleRadixAddressableHeap::new(0.0, 10_000.0).unwrap(),
+        DoubleRadixAddressableHeap::new(finite(0.0), finite(10_000.0)).unwrap(),
         doubles,
-        f64::total_cmp,
     );
 
     let minimum = BigUint::from(1_u8) << 130_usize;
@@ -295,7 +286,6 @@ fn addressable_radix_heaps_sort_random_and_invalidate_handles() {
     exercise_addressable_heap(
         BigIntegerRadixAddressableHeap::new(minimum, maximum).unwrap(),
         big_integers,
-        BigUint::cmp,
     );
 }
 
@@ -356,13 +346,13 @@ fn addressable_heaps_validate_handles_and_monotone_key_updates() {
         30_u64
     );
     exercise_addressable_handles!(
-        DoubleRadixAddressableHeap::new(0.0, 100.0).unwrap(),
-        0.0,
-        5.0,
-        10.0,
-        15.0,
-        20.0,
-        30.0
+        DoubleRadixAddressableHeap::new(finite(0.0), finite(100.0)).unwrap(),
+        finite(0.0),
+        finite(5.0),
+        finite(10.0),
+        finite(15.0),
+        finite(20.0),
+        finite(30.0)
     );
     exercise_addressable_handles!(
         BigIntegerRadixAddressableHeap::new(BigUint::from(0_u8), BigUint::from(100_u8)).unwrap(),
@@ -413,38 +403,35 @@ fn heaps_report_range_and_monotonicity_errors() {
 
 #[test]
 fn double_heaps_use_total_order_and_reject_non_finite_keys() {
+    assert!(FiniteF64::new(f64::NAN).is_err());
+    assert!(FiniteF64::new(f64::INFINITY).is_err());
+    assert!(FiniteF64::try_from(f64::NEG_INFINITY).is_err());
     assert!(matches!(
-        DoubleRadixHeap::new(-1.0, 1.0),
+        DoubleRadixHeap::new(finite(-1.0), finite(1.0)),
         Err(RadixHeapError::InvalidRange)
     ));
-    assert!(matches!(
-        DoubleRadixHeap::new(0.0, f64::INFINITY),
-        Err(RadixHeapError::NonFiniteKey)
-    ));
 
-    let mut heap = DoubleRadixHeap::new(-0.0, 0.0).unwrap();
-    heap.push(0.0).unwrap();
-    heap.push(-0.0).unwrap();
-    assert_eq!(heap.pop().unwrap().to_bits(), (-0.0_f64).to_bits());
-    assert_eq!(heap.pop().unwrap().to_bits(), 0.0_f64.to_bits());
+    let mut heap = DoubleRadixHeap::new(finite(-0.0), finite(0.0)).unwrap();
+    heap.push(finite(0.0)).unwrap();
+    heap.push(finite(-0.0)).unwrap();
+    assert_eq!(heap.pop().unwrap().as_f64().to_bits(), (-0.0_f64).to_bits());
+    assert_eq!(heap.pop().unwrap().as_f64().to_bits(), 0.0_f64.to_bits());
 
-    let mut finite = DoubleRadixHeap::new(0.0, 10.0).unwrap();
-    assert_eq!(finite.push(f64::NAN), Err(RadixHeapError::NonFiniteKey));
+    let mut values = DoubleRadixHeap::new(finite(0.0), finite(10.0)).unwrap();
+    values.push(finite(0.0)).unwrap();
+    assert_eq!(values.pop(), Some(finite(0.0)));
     assert_eq!(
-        finite.push(f64::NEG_INFINITY),
-        Err(RadixHeapError::NonFiniteKey)
+        values.push(finite(-0.0)),
+        Err(RadixHeapError::KeyOutOfRange)
     );
-    finite.push(0.0).unwrap();
-    assert_eq!(finite.pop(), Some(0.0));
-    assert_eq!(finite.push(-0.0), Err(RadixHeapError::KeyOutOfRange));
 
-    let mut regression = DoubleRadixHeap::new(0.0, 3.667_944_409_236_726).unwrap();
-    regression.push(0.0).unwrap();
-    regression.push(0.916_986_102_309_181_5).unwrap();
-    assert_eq!(regression.pop(), Some(0.0));
-    regression.push(1.781_470_858_172_715_4).unwrap();
-    assert_eq!(regression.pop(), Some(0.916_986_102_309_181_5));
-    assert_eq!(regression.pop(), Some(1.781_470_858_172_715_4));
+    let mut regression = DoubleRadixHeap::new(finite(0.0), finite(3.667_944_409_236_726)).unwrap();
+    regression.push(finite(0.0)).unwrap();
+    regression.push(finite(0.916_986_102_309_181_5)).unwrap();
+    assert_eq!(regression.pop(), Some(finite(0.0)));
+    regression.push(finite(1.781_470_858_172_715_4)).unwrap();
+    assert_eq!(regression.pop(), Some(finite(0.916_986_102_309_181_5)));
+    assert_eq!(regression.pop(), Some(finite(1.781_470_858_172_715_4)));
 }
 
 #[test]

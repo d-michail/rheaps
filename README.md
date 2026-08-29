@@ -9,7 +9,7 @@ collection of priority queues.
 - Complete array-backed heap family: binary and configurable d-ary min-heaps,
   binary weak heaps (including bulk insertion), addressable binary and d-ary
   heaps, integer-key value heaps, and min-max double-ended heaps
-- Complete monotone radix heap family: `u32`, `u64`, finite `f64`, and
+- Complete monotone radix heap family: `u32`, `u64`, finite `FiniteF64`, and
   arbitrary-sized unsigned (`num_bigint::BigUint`) key heaps, each with an
   addressable counterpart and checked monotonic-key operations
 - Complete tree heap family: explicit binary and power-of-two d-ary
@@ -18,11 +18,17 @@ collection of priority queues.
   Fibonacci heaps; plus reflected Fibonacci and pairing double-ended heaps
 - Complete DAG heap family: addressable, meldable hollow heaps with lazy
   hollow-node reclamation
-- Natural or custom ordering where supported, with checked opaque handles for
-  addressable heaps. Reflected heaps implement min/max addressable operations,
-  including `increase_key`, through `DoubleEndedAddressableHeap`.
+- Heaps use the key type's `Ord` implementation, with checked opaque handles
+  for addressable heaps. Reflected heaps implement min/max addressable
+  operations, including `increase_key`, through `DoubleEndedAddressableHeap`.
+  To use another priority order, wrap the key in a newtype and implement `Ord`
+  with that order (for example, reverse it for max-oriented behavior).
 
 All public heap implementations from the Java JHeaps source are now ported.
+
+`DoubleRadixHeap` and `DoubleRadixAddressableHeap` take `FiniteF64` keys.
+Construct them with `FiniteF64::new(value)` or `value.try_into()`; invalid
+NaN and infinite values are rejected before insertion.
 
 ## Porting order
 

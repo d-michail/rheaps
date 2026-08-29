@@ -1,35 +1,26 @@
-use core::cmp::Ordering;
-
 use crate::Heap;
-use crate::array::{Comparator, NaturalOrder};
 
 const DEFAULT_HEAP_CAPACITY: usize = 16;
 const INSERTION_BUFFER_CAPACITY: usize = 34;
 
 #[derive(Clone, Debug)]
-struct WeakHeapCore<T, C> {
+struct WeakHeapCore<T> {
     values: Vec<T>,
     reverse: Vec<bool>,
-    compare: C,
 }
 
-impl<T, C> WeakHeapCore<T, C>
-where
-    C: Comparator<T>,
-{
-    fn new(capacity: usize, compare: C) -> Self {
+impl<T: Ord> WeakHeapCore<T> {
+    fn new(capacity: usize) -> Self {
         Self {
             values: Vec::with_capacity(capacity),
             reverse: Vec::with_capacity(capacity),
-            compare,
         }
     }
 
-    fn from_vec(values: Vec<T>, compare: C) -> Self {
+    fn from_vec(values: Vec<T>) -> Self {
         let mut heap = Self {
             reverse: vec![false; values.len()],
             values,
-            compare,
         };
         for index in (1..heap.values.len()).rev() {
             let ancestor = heap.distinguished_ancestor(index);
@@ -89,11 +80,7 @@ where
     }
 
     fn join(&mut self, first: usize, second: usize) -> bool {
-        if self
-            .compare
-            .compare(&self.values[second], &self.values[first])
-            == Ordering::Less
-        {
+        if self.values[second] < self.values[first] {
             self.values.swap(first, second);
             self.reverse[second] = !self.reverse[second];
             false
@@ -137,12 +124,12 @@ where
 /// comparison per level during insertion. `push` and `pop` are `O(log n)`;
 /// construction from a vector is `O(n)`.
 #[derive(Clone, Debug)]
-pub struct BinaryArrayWeakHeap<T, C = NaturalOrder> {
-    inner: WeakHeapCore<T, C>,
+pub struct BinaryArrayWeakHeap<T> {
+    inner: WeakHeapCore<T>,
 }
 
 impl<T: Ord> BinaryArrayWeakHeap<T> {
-    /// Creates an empty heap using the natural ordering of values.
+    /// Creates an empty heap.
     #[must_use]
     pub fn new() -> Self {
         Self::with_capacity(DEFAULT_HEAP_CAPACITY)
@@ -152,7 +139,7 @@ impl<T: Ord> BinaryArrayWeakHeap<T> {
     #[must_use]
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
-            inner: WeakHeapCore::new(capacity, NaturalOrder),
+            inner: WeakHeapCore::new(capacity),
         }
     }
 
@@ -160,7 +147,7 @@ impl<T: Ord> BinaryArrayWeakHeap<T> {
     #[must_use]
     pub fn from_vec(values: Vec<T>) -> Self {
         Self {
-            inner: WeakHeapCore::from_vec(values, NaturalOrder),
+            inner: WeakHeapCore::from_vec(values),
         }
     }
 }
@@ -171,39 +158,7 @@ impl<T: Ord> Default for BinaryArrayWeakHeap<T> {
     }
 }
 
-impl<T, C> BinaryArrayWeakHeap<T, C>
-where
-    C: Comparator<T>,
-{
-    /// Creates an empty heap ordered by `compare`.
-    #[must_use]
-    pub fn with_comparator(compare: C) -> Self {
-        Self::with_capacity_and_comparator(DEFAULT_HEAP_CAPACITY, compare)
-    }
-
-    /// Creates an empty heap with at least `capacity` slots, ordered by
-    /// `compare`.
-    #[must_use]
-    pub fn with_capacity_and_comparator(capacity: usize, compare: C) -> Self {
-        Self {
-            inner: WeakHeapCore::new(capacity, compare),
-        }
-    }
-
-    /// Builds a weak heap from `values` in linear time using `compare`.
-    #[must_use]
-    pub fn from_vec_by(values: Vec<T>, compare: C) -> Self {
-        Self {
-            inner: WeakHeapCore::from_vec(values, compare),
-        }
-    }
-
-    /// Returns the comparator used to order values.
-    #[must_use]
-    pub fn comparator(&self) -> &C {
-        &self.inner.compare
-    }
-
+impl<T: Ord> BinaryArrayWeakHeap<T> {
     /// Consumes the heap and returns its backing values in heap order.
     #[must_use]
     pub fn into_vec(self) -> Vec<T> {
@@ -211,10 +166,7 @@ where
     }
 }
 
-impl<T, C> Heap<T> for BinaryArrayWeakHeap<T, C>
-where
-    C: Comparator<T>,
-{
+impl<T: Ord> Heap<T> for BinaryArrayWeakHeap<T> {
     fn push(&mut self, value: T) {
         self.inner.push(value);
     }
@@ -242,14 +194,14 @@ where
 /// work. The buffer's minimum is tracked, so [`Heap::peek`] remains `O(1)`.
 /// A full buffer is integrated using the weak-heap bulk insertion algorithm.
 #[derive(Clone, Debug)]
-pub struct BinaryArrayBulkInsertWeakHeap<T, C = NaturalOrder> {
-    inner: WeakHeapCore<T, C>,
+pub struct BinaryArrayBulkInsertWeakHeap<T> {
+    inner: WeakHeapCore<T>,
     insertion_buffer: Vec<T>,
     insertion_buffer_min: usize,
 }
 
 impl<T: Ord> BinaryArrayBulkInsertWeakHeap<T> {
-    /// Creates an empty heap using the natural ordering of values.
+    /// Creates an empty heap.
     #[must_use]
     pub fn new() -> Self {
         Self::with_capacity(DEFAULT_HEAP_CAPACITY)
@@ -259,7 +211,7 @@ impl<T: Ord> BinaryArrayBulkInsertWeakHeap<T> {
     #[must_use]
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
-            inner: WeakHeapCore::new(capacity, NaturalOrder),
+            inner: WeakHeapCore::new(capacity),
             insertion_buffer: Vec::with_capacity(INSERTION_BUFFER_CAPACITY),
             insertion_buffer_min: 0,
         }
@@ -269,7 +221,7 @@ impl<T: Ord> BinaryArrayBulkInsertWeakHeap<T> {
     #[must_use]
     pub fn from_vec(values: Vec<T>) -> Self {
         Self {
-            inner: WeakHeapCore::from_vec(values, NaturalOrder),
+            inner: WeakHeapCore::from_vec(values),
             insertion_buffer: Vec::with_capacity(INSERTION_BUFFER_CAPACITY),
             insertion_buffer_min: 0,
         }
@@ -282,43 +234,7 @@ impl<T: Ord> Default for BinaryArrayBulkInsertWeakHeap<T> {
     }
 }
 
-impl<T, C> BinaryArrayBulkInsertWeakHeap<T, C>
-where
-    C: Comparator<T>,
-{
-    /// Creates an empty heap ordered by `compare`.
-    #[must_use]
-    pub fn with_comparator(compare: C) -> Self {
-        Self::with_capacity_and_comparator(DEFAULT_HEAP_CAPACITY, compare)
-    }
-
-    /// Creates an empty heap with at least `capacity` slots, ordered by
-    /// `compare`.
-    #[must_use]
-    pub fn with_capacity_and_comparator(capacity: usize, compare: C) -> Self {
-        Self {
-            inner: WeakHeapCore::new(capacity, compare),
-            insertion_buffer: Vec::with_capacity(INSERTION_BUFFER_CAPACITY),
-            insertion_buffer_min: 0,
-        }
-    }
-
-    /// Builds a heap from `values` in linear time using `compare`.
-    #[must_use]
-    pub fn from_vec_by(values: Vec<T>, compare: C) -> Self {
-        Self {
-            inner: WeakHeapCore::from_vec(values, compare),
-            insertion_buffer: Vec::with_capacity(INSERTION_BUFFER_CAPACITY),
-            insertion_buffer_min: 0,
-        }
-    }
-
-    /// Returns the comparator used to order values.
-    #[must_use]
-    pub fn comparator(&self) -> &C {
-        &self.inner.compare
-    }
-
+impl<T: Ord> BinaryArrayBulkInsertWeakHeap<T> {
     /// Consumes the heap and returns values in heap order.
     ///
     /// Pending buffered values are integrated before the backing vector is
@@ -340,11 +256,7 @@ where
     fn recompute_buffer_minimum(&mut self) {
         self.insertion_buffer_min = 0;
         for index in 1..self.insertion_buffer.len() {
-            if self.inner.compare.compare(
-                &self.insertion_buffer[index],
-                &self.insertion_buffer[self.insertion_buffer_min],
-            ) == Ordering::Less
-            {
+            if self.insertion_buffer[index] < self.insertion_buffer[self.insertion_buffer_min] {
                 self.insertion_buffer_min = index;
             }
         }
@@ -393,20 +305,14 @@ where
     }
 }
 
-impl<T, C> Heap<T> for BinaryArrayBulkInsertWeakHeap<T, C>
-where
-    C: Comparator<T>,
-{
+impl<T: Ord> Heap<T> for BinaryArrayBulkInsertWeakHeap<T> {
     fn push(&mut self, value: T) {
         let index = self.insertion_buffer.len();
         self.insertion_buffer.push(value);
         if self.buffer_is_full() {
             self.bulk_insert();
         } else if index > 0
-            && self.inner.compare.compare(
-                &self.insertion_buffer[index],
-                &self.insertion_buffer[self.insertion_buffer_min],
-            ) == Ordering::Less
+            && self.insertion_buffer[index] < self.insertion_buffer[self.insertion_buffer_min]
         {
             self.insertion_buffer_min = index;
         }
@@ -421,7 +327,7 @@ where
             (Some(value), None) => Some(value),
             (None, Some(value)) => Some(value),
             (Some(heap_minimum), Some(buffer_minimum)) => {
-                if self.inner.compare.compare(heap_minimum, buffer_minimum) == Ordering::Greater {
+                if heap_minimum > buffer_minimum {
                     Some(buffer_minimum)
                 } else {
                     Some(heap_minimum)
@@ -438,9 +344,7 @@ where
             (None, None) => return None,
             (None, Some(_)) => true,
             (Some(_), None) => false,
-            (Some(heap_minimum), Some(buffer_minimum)) => {
-                self.inner.compare.compare(buffer_minimum, heap_minimum) == Ordering::Less
-            }
+            (Some(heap_minimum), Some(buffer_minimum)) => buffer_minimum < heap_minimum,
         };
         if remove_from_buffer {
             let value = self.insertion_buffer.swap_remove(self.insertion_buffer_min);

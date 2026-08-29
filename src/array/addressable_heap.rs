@@ -1,9 +1,8 @@
-use core::cmp::Ordering;
 use core::fmt;
 use core::sync::atomic::{AtomicU64, Ordering as AtomicOrdering};
 
 use crate::AddressableHeap;
-use crate::array::{Comparator, InvalidDegree, NaturalOrder};
+use crate::array::InvalidDegree;
 
 const DEFAULT_HEAP_CAPACITY: usize = 16;
 static NEXT_HEAP_ID: AtomicU64 = AtomicU64::new(1);
@@ -104,29 +103,24 @@ struct Slot {
     generation: u64,
 }
 
-struct AddressableCore<K, V, C> {
+struct AddressableCore<K, V> {
     entries: Vec<Entry<K, V>>,
     slots: Vec<Slot>,
     free_slots: Vec<usize>,
-    compare: C,
     heap_id: u64,
 }
 
-impl<K, V, C> AddressableCore<K, V, C>
-where
-    C: Comparator<K>,
-{
-    fn new(capacity: usize, compare: C) -> Self {
+impl<K: Ord, V> AddressableCore<K, V> {
+    fn new(capacity: usize) -> Self {
         Self {
             entries: Vec::with_capacity(capacity),
             slots: Vec::with_capacity(capacity),
             free_slots: Vec::new(),
-            compare,
             heap_id: next_heap_id(),
         }
     }
 
-    fn from_vec(entries: Vec<(K, V)>, degree: usize, compare: C) -> Self {
+    fn from_vec(entries: Vec<(K, V)>, degree: usize) -> Self {
         let heap_id = next_heap_id();
         let mut slots = Vec::with_capacity(entries.len());
         let mut heap_entries = Vec::with_capacity(entries.len());
@@ -145,15 +139,10 @@ where
             entries: heap_entries,
             slots,
             free_slots: Vec::new(),
-            compare,
             heap_id,
         };
         heap.heapify(degree);
         heap
-    }
-
-    fn comparator(&self) -> &C {
-        &self.compare
     }
 
     fn len(&self) -> usize {
@@ -243,7 +232,7 @@ where
         let index = self
             .validate(handle)
             .map_err(DecreaseKeyError::InvalidHandle)?;
-        if self.compare.compare(&key, &self.entries[index].key) == Ordering::Greater {
+        if key > self.entries[index].key {
             return Err(DecreaseKeyError::NotDecreased);
         }
         self.entries[index].key = key;
@@ -305,11 +294,7 @@ where
     fn restore_at(&mut self, index: usize, degree: usize) {
         if index > 0 {
             let parent = (index - 1) / degree;
-            if self
-                .compare
-                .compare(&self.entries[index].key, &self.entries[parent].key)
-                == Ordering::Less
-            {
+            if self.entries[index].key < self.entries[parent].key {
                 self.sift_up(index, degree);
                 return;
             }
@@ -320,11 +305,7 @@ where
     fn sift_up(&mut self, mut index: usize, degree: usize) {
         while index > 0 {
             let parent = (index - 1) / degree;
-            if self
-                .compare
-                .compare(&self.entries[parent].key, &self.entries[index].key)
-                != Ordering::Greater
-            {
+            if self.entries[parent].key <= self.entries[index].key {
                 break;
             }
             self.swap_entries(parent, index);
@@ -344,19 +325,11 @@ where
             let end = first_child.saturating_add(degree).min(self.entries.len());
             let mut smallest = first_child;
             for child in first_child + 1..end {
-                if self
-                    .compare
-                    .compare(&self.entries[child].key, &self.entries[smallest].key)
-                    == Ordering::Less
-                {
+                if self.entries[child].key < self.entries[smallest].key {
                     smallest = child;
                 }
             }
-            if self
-                .compare
-                .compare(&self.entries[index].key, &self.entries[smallest].key)
-                != Ordering::Greater
-            {
+            if self.entries[index].key <= self.entries[smallest].key {
                 return;
             }
             self.swap_entries(index, smallest);
@@ -384,12 +357,12 @@ fn next_heap_id() -> u64 {
 ///
 /// Insertion, removal, deletion by handle, and key decreases are `O(log n)`;
 /// inspecting the minimum is `O(1)`.
-pub struct BinaryArrayAddressableHeap<K, V, C = NaturalOrder> {
-    inner: AddressableCore<K, V, C>,
+pub struct BinaryArrayAddressableHeap<K, V> {
+    inner: AddressableCore<K, V>,
 }
 
 impl<K: Ord, V> BinaryArrayAddressableHeap<K, V> {
-    /// Creates an empty heap using the natural ordering of keys.
+    /// Creates an empty heap.
     #[must_use]
     pub fn new() -> Self {
         Self::with_capacity(DEFAULT_HEAP_CAPACITY)
@@ -399,7 +372,7 @@ impl<K: Ord, V> BinaryArrayAddressableHeap<K, V> {
     #[must_use]
     pub fn with_capacity(capacity: usize) -> Self {
         Self {
-            inner: AddressableCore::new(capacity, NaturalOrder),
+            inner: AddressableCore::new(capacity),
         }
     }
 
@@ -407,7 +380,7 @@ impl<K: Ord, V> BinaryArrayAddressableHeap<K, V> {
     #[must_use]
     pub fn from_vec(entries: Vec<(K, V)>) -> Self {
         Self {
-            inner: AddressableCore::from_vec(entries, 2, NaturalOrder),
+            inner: AddressableCore::from_vec(entries, 2),
         }
     }
 }
@@ -418,38 +391,7 @@ impl<K: Ord, V> Default for BinaryArrayAddressableHeap<K, V> {
     }
 }
 
-impl<K, V, C> BinaryArrayAddressableHeap<K, V, C>
-where
-    C: Comparator<K>,
-{
-    /// Creates an empty heap ordered by `compare`.
-    #[must_use]
-    pub fn with_comparator(compare: C) -> Self {
-        Self::with_capacity_and_comparator(DEFAULT_HEAP_CAPACITY, compare)
-    }
-
-    /// Creates an empty heap with storage for at least `capacity` entries.
-    #[must_use]
-    pub fn with_capacity_and_comparator(capacity: usize, compare: C) -> Self {
-        Self {
-            inner: AddressableCore::new(capacity, compare),
-        }
-    }
-
-    /// Builds a heap from key-value pairs in linear time using `compare`.
-    #[must_use]
-    pub fn from_vec_by(entries: Vec<(K, V)>, compare: C) -> Self {
-        Self {
-            inner: AddressableCore::from_vec(entries, 2, compare),
-        }
-    }
-
-    /// Returns the comparator used to order keys.
-    #[must_use]
-    pub fn comparator(&self) -> &C {
-        self.inner.comparator()
-    }
-
+impl<K: Ord, V> BinaryArrayAddressableHeap<K, V> {
     /// Inserts an entry and returns a handle that addresses it while live.
     pub fn push(&mut self, key: K, value: V) -> AddressableHandle {
         self.inner.push(key, value, 2)
@@ -523,10 +465,7 @@ where
     }
 }
 
-impl<K, V, C> AddressableHeap<K, V> for BinaryArrayAddressableHeap<K, V, C>
-where
-    C: Comparator<K>,
-{
+impl<K: Ord, V> AddressableHeap<K, V> for BinaryArrayAddressableHeap<K, V> {
     type Handle = AddressableHandle;
 
     fn push(&mut self, key: K, value: V) -> Self::Handle {
@@ -574,8 +513,8 @@ where
 ///
 /// The degree must be at least two. Larger degrees reduce insertion height but
 /// increase comparisons during removal.
-pub struct DaryArrayAddressableHeap<K, V, C = NaturalOrder> {
-    inner: AddressableCore<K, V, C>,
+pub struct DaryArrayAddressableHeap<K, V> {
+    inner: AddressableCore<K, V>,
     degree: usize,
 }
 
@@ -587,12 +526,20 @@ impl<K: Ord, V> DaryArrayAddressableHeap<K, V> {
 
     /// Creates an empty heap with storage for at least `capacity` entries.
     pub fn with_capacity(degree: usize, capacity: usize) -> Result<Self, InvalidDegree> {
-        Self::with_capacity_and_comparator(degree, capacity, NaturalOrder)
+        validate_degree(degree)?;
+        Ok(Self {
+            inner: AddressableCore::new(capacity),
+            degree,
+        })
     }
 
     /// Builds a heap from key-value pairs in linear time.
     pub fn from_vec(degree: usize, entries: Vec<(K, V)>) -> Result<Self, InvalidDegree> {
-        Self::from_vec_by(degree, entries, NaturalOrder)
+        validate_degree(degree)?;
+        Ok(Self {
+            inner: AddressableCore::from_vec(entries, degree),
+            degree,
+        })
     }
 }
 
@@ -602,51 +549,11 @@ impl<K: Ord, V> Default for DaryArrayAddressableHeap<K, V> {
     }
 }
 
-impl<K, V, C> DaryArrayAddressableHeap<K, V, C>
-where
-    C: Comparator<K>,
-{
-    /// Creates an empty heap ordered by `compare`.
-    pub fn with_comparator(degree: usize, compare: C) -> Result<Self, InvalidDegree> {
-        Self::with_capacity_and_comparator(degree, DEFAULT_HEAP_CAPACITY, compare)
-    }
-
-    /// Creates an empty heap with storage for at least `capacity` entries.
-    pub fn with_capacity_and_comparator(
-        degree: usize,
-        capacity: usize,
-        compare: C,
-    ) -> Result<Self, InvalidDegree> {
-        validate_degree(degree)?;
-        Ok(Self {
-            inner: AddressableCore::new(capacity, compare),
-            degree,
-        })
-    }
-
-    /// Builds a heap from key-value pairs in linear time using `compare`.
-    pub fn from_vec_by(
-        degree: usize,
-        entries: Vec<(K, V)>,
-        compare: C,
-    ) -> Result<Self, InvalidDegree> {
-        validate_degree(degree)?;
-        Ok(Self {
-            inner: AddressableCore::from_vec(entries, degree, compare),
-            degree,
-        })
-    }
-
+impl<K: Ord, V> DaryArrayAddressableHeap<K, V> {
     /// Returns the number of children per node.
     #[must_use]
     pub const fn degree(&self) -> usize {
         self.degree
-    }
-
-    /// Returns the comparator used to order keys.
-    #[must_use]
-    pub fn comparator(&self) -> &C {
-        self.inner.comparator()
     }
 
     /// Inserts an entry and returns a handle that addresses it while live.
@@ -722,10 +629,7 @@ where
     }
 }
 
-impl<K, V, C> AddressableHeap<K, V> for DaryArrayAddressableHeap<K, V, C>
-where
-    C: Comparator<K>,
-{
+impl<K: Ord, V> AddressableHeap<K, V> for DaryArrayAddressableHeap<K, V> {
     type Handle = AddressableHandle;
 
     fn push(&mut self, key: K, value: V) -> Self::Handle {

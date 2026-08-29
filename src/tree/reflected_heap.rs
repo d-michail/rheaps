@@ -1,8 +1,8 @@
+use core::cmp::Reverse;
 use core::marker::PhantomData;
 use std::collections::HashMap;
-use std::rc::Rc;
 
-use crate::array::{Comparator, DecreaseKeyError, IncreaseKeyError, InvalidHandle, NaturalOrder};
+use crate::array::{DecreaseKeyError, IncreaseKeyError, InvalidHandle};
 use crate::{
     AddressableHeap, DoubleEndedAddressableHeap, DoubleEndedHeap, Heap, MeldableAddressableHeap,
     MeldableDoubleEndedAddressableHeap, MeldableHeap,
@@ -18,55 +18,16 @@ pub struct InnerRecord {
     other: Option<TreeHandle>,
 }
 
-#[doc(hidden)]
-pub struct ForwardComparator<C>(Rc<C>);
-
-impl<T, C> Comparator<T> for ForwardComparator<C>
-where
-    C: Comparator<T>,
-{
-    fn compare(&self, left: &T, right: &T) -> core::cmp::Ordering {
-        self.0.compare(left, right)
-    }
-}
-
-impl<C: PartialEq> PartialEq for ForwardComparator<C> {
-    fn eq(&self, other: &Self) -> bool {
-        self.0 == other.0
-    }
-}
-
-#[doc(hidden)]
-pub struct ReverseComparator<C>(Rc<C>);
-
-impl<T, C> Comparator<T> for ReverseComparator<C>
-where
-    C: Comparator<T>,
-{
-    fn compare(&self, left: &T, right: &T) -> core::cmp::Ordering {
-        self.0.compare(right, left)
-    }
-}
-
-impl<C: PartialEq> PartialEq for ReverseComparator<C> {
-    fn eq(&self, other: &Self) -> bool {
-        self.0 == other.0
-    }
-}
-
 /// Selects the meldable tree heaps used by a [`ReflectedHeap`].
 #[doc(hidden)]
-pub trait ReflectedHeapBackend<K, C>
-where
-    C: Comparator<K>,
-{
-    /// The heap ordered by the supplied comparator.
+pub trait ReflectedHeapBackend<K: Ord> {
+    /// The min-oriented inner heap.
     type Min: AddressableHeap<K, InnerRecord, Handle = TreeHandle>;
-    /// The heap ordered by the reverse of the supplied comparator.
-    type Max: AddressableHeap<K, InnerRecord, Handle = TreeHandle>;
+    /// The max-oriented inner heap.
+    type Max: AddressableHeap<Reverse<K>, InnerRecord, Handle = TreeHandle>;
 
     /// Constructs the paired inner heaps.
-    fn new(comparator: Rc<C>) -> (Self::Min, Self::Max);
+    fn new() -> (Self::Min, Self::Max);
 }
 
 /// Uses Fibonacci heaps in a reflected heap.
@@ -74,18 +35,12 @@ where
 #[doc(hidden)]
 pub struct FibonacciReflectedBackend;
 
-impl<K, C> ReflectedHeapBackend<K, C> for FibonacciReflectedBackend
-where
-    C: Comparator<K>,
-{
-    type Min = FibonacciHeap<K, InnerRecord, ForwardComparator<C>>;
-    type Max = FibonacciHeap<K, InnerRecord, ReverseComparator<C>>;
+impl<K: Ord> ReflectedHeapBackend<K> for FibonacciReflectedBackend {
+    type Min = FibonacciHeap<K, InnerRecord>;
+    type Max = FibonacciHeap<Reverse<K>, InnerRecord>;
 
-    fn new(comparator: Rc<C>) -> (Self::Min, Self::Max) {
-        (
-            FibonacciHeap::with_comparator(ForwardComparator(Rc::clone(&comparator))),
-            FibonacciHeap::with_comparator(ReverseComparator(comparator)),
-        )
+    fn new() -> (Self::Min, Self::Max) {
+        (FibonacciHeap::new(), FibonacciHeap::new())
     }
 }
 
@@ -94,18 +49,12 @@ where
 #[doc(hidden)]
 pub struct PairingReflectedBackend;
 
-impl<K, C> ReflectedHeapBackend<K, C> for PairingReflectedBackend
-where
-    C: Comparator<K>,
-{
-    type Min = PairingHeap<K, InnerRecord, ForwardComparator<C>>;
-    type Max = PairingHeap<K, InnerRecord, ReverseComparator<C>>;
+impl<K: Ord> ReflectedHeapBackend<K> for PairingReflectedBackend {
+    type Min = PairingHeap<K, InnerRecord>;
+    type Max = PairingHeap<Reverse<K>, InnerRecord>;
 
-    fn new(comparator: Rc<C>) -> (Self::Min, Self::Max) {
-        (
-            PairingHeap::with_comparator(ForwardComparator(Rc::clone(&comparator))),
-            PairingHeap::with_comparator(ReverseComparator(comparator)),
-        )
+    fn new() -> (Self::Min, Self::Max) {
+        (PairingHeap::new(), PairingHeap::new())
     }
 }
 
@@ -186,12 +135,11 @@ impl<K, V> OuterArena<K, V> {
 /// max-oriented meldable heap. One unpaired entry is retained when the number
 /// of elements is odd. [`ReflectedFibonacciHeap`] and
 /// [`ReflectedPairingHeap`] select the corresponding inner data structure.
-pub struct ReflectedHeap<K, V = (), C = NaturalOrder, B = FibonacciReflectedBackend>
+pub struct ReflectedHeap<K, V = (), B = FibonacciReflectedBackend>
 where
-    C: Comparator<K>,
-    B: ReflectedHeapBackend<K, C>,
+    K: Ord,
+    B: ReflectedHeapBackend<K>,
 {
-    compare: Rc<C>,
     min_heap: B::Min,
     max_heap: B::Max,
     free: Option<ReflectedHandle>,
@@ -203,48 +151,23 @@ where
 }
 
 /// A reflected double-ended heap built from Fibonacci heaps.
-pub type ReflectedFibonacciHeap<K, V = (), C = NaturalOrder> =
-    ReflectedHeap<K, V, C, FibonacciReflectedBackend>;
+pub type ReflectedFibonacciHeap<K, V = ()> = ReflectedHeap<K, V, FibonacciReflectedBackend>;
 
 /// A reflected double-ended heap built from pairing heaps.
-pub type ReflectedPairingHeap<K, V = (), C = NaturalOrder> =
-    ReflectedHeap<K, V, C, PairingReflectedBackend>;
+pub type ReflectedPairingHeap<K, V = ()> = ReflectedHeap<K, V, PairingReflectedBackend>;
 
-impl<K: Ord, V, B> ReflectedHeap<K, V, NaturalOrder, B>
+impl<K: Ord, V, B> ReflectedHeap<K, V, B>
 where
-    B: ReflectedHeapBackend<K, NaturalOrder>,
+    B: ReflectedHeapBackend<K>,
 {
-    /// Creates an empty heap using the natural ordering of keys.
+    /// Creates an empty heap.
     #[must_use]
     pub fn new() -> Self {
-        Self::with_comparator(NaturalOrder)
-    }
-}
-
-impl<K: Ord, V, B> Default for ReflectedHeap<K, V, NaturalOrder, B>
-where
-    B: ReflectedHeapBackend<K, NaturalOrder>,
-{
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl<K, V, C, B> ReflectedHeap<K, V, C, B>
-where
-    C: Comparator<K>,
-    B: ReflectedHeapBackend<K, C>,
-{
-    /// Creates an empty heap ordered by `compare`.
-    #[must_use]
-    pub fn with_comparator(compare: C) -> Self {
-        let compare = Rc::new(compare);
-        let (min_heap, max_heap) = B::new(Rc::clone(&compare));
+        let (min_heap, max_heap) = B::new();
         let own_domain = next_domain_id();
         let mut arenas = HashMap::new();
         arenas.insert(own_domain, OuterArena::new());
         Self {
-            compare,
             min_heap,
             max_heap,
             free: None,
@@ -254,12 +177,6 @@ where
             arenas,
             backend: PhantomData,
         }
-    }
-
-    /// Returns the comparator used to order keys.
-    #[must_use]
-    pub fn comparator(&self) -> &C {
-        self.compare.as_ref()
     }
 
     /// Inserts an entry unless this heap was consumed as a meld donor.
@@ -321,9 +238,11 @@ where
             Some(Location::Min(inner)) => {
                 self.min_heap.key(inner).map_err(|_| InvalidHandle::Stale)
             }
-            Some(Location::Max(inner)) => {
-                self.max_heap.key(inner).map_err(|_| InvalidHandle::Stale)
-            }
+            Some(Location::Max(inner)) => self
+                .max_heap
+                .key(inner)
+                .map(|key| &key.0)
+                .map_err(|_| InvalidHandle::Stale),
         }
     }
 
@@ -346,10 +265,8 @@ where
     ) -> Result<(), DecreaseKeyError> {
         self.validate(handle)
             .map_err(DecreaseKeyError::InvalidHandle)?;
-        let order = self
-            .compare
-            .compare(&key, self.key(handle).expect("handle was validated"));
-        if order == core::cmp::Ordering::Greater {
+        let order = key.cmp(self.key(handle).expect("handle was validated"));
+        if order.is_gt() {
             return Err(DecreaseKeyError::NotDecreased);
         }
         match self.outer(handle).location {
@@ -358,9 +275,9 @@ where
                 .min_heap
                 .decrease_key(inner, key)
                 .expect("minimum inner handle must be live"),
-            Some(Location::Max(inner)) if order == core::cmp::Ordering::Equal => self
+            Some(Location::Max(inner)) if order.is_eq() => self
                 .max_heap
-                .decrease_key(inner, key)
+                .decrease_key(inner, Reverse(key))
                 .expect("maximum inner handle must be live"),
             Some(Location::Max(inner)) => self.repair_changed_maximum(handle, inner, key),
         }
@@ -375,19 +292,17 @@ where
     ) -> Result<(), IncreaseKeyError> {
         self.validate(handle)
             .map_err(IncreaseKeyError::InvalidHandle)?;
-        let order = self
-            .compare
-            .compare(&key, self.key(handle).expect("handle was validated"));
-        if order == core::cmp::Ordering::Less {
+        let order = key.cmp(self.key(handle).expect("handle was validated"));
+        if order.is_lt() {
             return Err(IncreaseKeyError::NotIncreased);
         }
         match self.outer(handle).location {
             None => self.outer_mut(handle).key = Some(key),
             Some(Location::Max(inner)) => self
                 .max_heap
-                .decrease_key(inner, key)
+                .decrease_key(inner, Reverse(key))
                 .expect("maximum inner handle must be live"),
-            Some(Location::Min(inner)) if order == core::cmp::Ordering::Equal => self
+            Some(Location::Min(inner)) if order.is_eq() => self
                 .min_heap
                 .decrease_key(inner, key)
                 .expect("minimum inner handle must be live"),
@@ -419,7 +334,7 @@ where
                     .delete(partner)
                     .expect("maximum inner handle must be live");
                 debug_assert_eq!(record.outer, handle);
-                (key, (partner_record.outer, partner_key))
+                (key, (partner_record.outer, partner_key.0))
             }
             Some(Location::Max(inner)) => {
                 let (key, record) = self
@@ -432,7 +347,7 @@ where
                     .delete(partner)
                     .expect("minimum inner handle must be live");
                 debug_assert_eq!(record.outer, handle);
-                (key, (partner_record.outer, partner_key))
+                (key.0, (partner_record.outer, partner_key))
             }
         };
         let entry = self.remove_outer(handle);
@@ -529,7 +444,7 @@ where
             Some(free) => match self.min_heap.peek() {
                 None => Some(free),
                 Some((_, key, record)) => {
-                    if self.compare.compare(key, self.free_key(free)) == core::cmp::Ordering::Less {
+                    if key < self.free_key(free) {
                         Some(record.outer)
                     } else {
                         Some(free)
@@ -545,9 +460,7 @@ where
             Some(free) => match self.max_heap.peek() {
                 None => Some(free),
                 Some((_, key, record)) => {
-                    if self.compare.compare(key, self.free_key(free))
-                        == core::cmp::Ordering::Greater
-                    {
+                    if key.0 > *self.free_key(free) {
                         Some(record.outer)
                     } else {
                         Some(free)
@@ -567,10 +480,7 @@ where
     fn insert_pair(&mut self, first: ReflectedHandle, second: ReflectedHandle) {
         debug_assert!(self.outer(first).location.is_none());
         debug_assert!(self.outer(second).location.is_none());
-        let first_is_min = self
-            .compare
-            .compare(self.free_key(first), self.free_key(second))
-            != core::cmp::Ordering::Greater;
+        let first_is_min = self.free_key(first) <= self.free_key(second);
         let (minimum, maximum) = if first_is_min {
             (first, second)
         } else {
@@ -594,7 +504,7 @@ where
             },
         );
         let maximum_inner = self.max_heap.push(
-            maximum_key,
+            Reverse(maximum_key),
             InnerRecord {
                 outer: maximum,
                 other: Some(minimum_inner),
@@ -654,7 +564,7 @@ where
             .expect("maximum inner handle must be live");
         debug_assert_eq!(record.outer, handle);
         self.set_unpaired_key(handle, key);
-        self.set_unpaired_key(partner_record.outer, partner_key);
+        self.set_unpaired_key(partner_record.outer, partner_key.0);
         self.insert_pair(handle, partner_record.outer);
     }
 
@@ -665,12 +575,20 @@ where
     }
 }
 
-impl<K, V, C, B> ReflectedHeap<K, V, C, B>
+impl<K: Ord, V, B> Default for ReflectedHeap<K, V, B>
 where
-    C: Comparator<K> + PartialEq,
-    B: ReflectedHeapBackend<K, C>,
+    B: ReflectedHeapBackend<K>,
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl<K: Ord, V, B> ReflectedHeap<K, V, B>
+where
+    B: ReflectedHeapBackend<K>,
     B::Min: MeldableAddressableHeap<K, InnerRecord, Handle = TreeHandle, MeldError = MeldError>,
-    B::Max: MeldableAddressableHeap<K, InnerRecord, Handle = TreeHandle, MeldError = MeldError>,
+    B::Max: MeldableAddressableHeap<Reverse<K>, InnerRecord, Handle = TreeHandle, MeldError = MeldError>,
 {
     /// Melds `other` into this heap, consuming the donor on success.
     pub fn meld(&mut self, other: &mut Self) -> Result<(), MeldError> {
@@ -679,9 +597,6 @@ where
         }
         if !other.active {
             return Err(MeldError::DonorConsumed);
-        }
-        if self.comparator() != other.comparator() {
-            return Err(MeldError::IncompatibleComparator);
         }
         self.min_heap.meld(&mut other.min_heap)?;
         self.max_heap.meld(&mut other.max_heap)?;
@@ -698,10 +613,9 @@ where
     }
 }
 
-impl<K, C, B> ReflectedHeap<K, (), C, B>
+impl<K: Ord, B> ReflectedHeap<K, (), B>
 where
-    C: Comparator<K>,
-    B: ReflectedHeapBackend<K, C>,
+    B: ReflectedHeapBackend<K>,
 {
     /// Inserts a key into this value-less heap.
     pub fn push(&mut self, key: K) {
@@ -731,10 +645,9 @@ where
     }
 }
 
-impl<K, V, C, B> AddressableHeap<K, V> for ReflectedHeap<K, V, C, B>
+impl<K: Ord, V, B> AddressableHeap<K, V> for ReflectedHeap<K, V, B>
 where
-    C: Comparator<K>,
-    B: ReflectedHeapBackend<K, C>,
+    B: ReflectedHeapBackend<K>,
 {
     type Handle = ReflectedHandle;
 
@@ -779,10 +692,9 @@ where
     }
 }
 
-impl<K, V, C, B> DoubleEndedAddressableHeap<K, V> for ReflectedHeap<K, V, C, B>
+impl<K: Ord, V, B> DoubleEndedAddressableHeap<K, V> for ReflectedHeap<K, V, B>
 where
-    C: Comparator<K>,
-    B: ReflectedHeapBackend<K, C>,
+    B: ReflectedHeapBackend<K>,
 {
     fn peek_max(&self) -> Option<(Self::Handle, &K, &V)> {
         Self::peek_max_entry(self)
@@ -797,10 +709,9 @@ where
     }
 }
 
-impl<T, C, B> Heap<T> for ReflectedHeap<T, (), C, B>
+impl<T: Ord, B> Heap<T> for ReflectedHeap<T, (), B>
 where
-    C: Comparator<T>,
-    B: ReflectedHeapBackend<T, C>,
+    B: ReflectedHeapBackend<T>,
 {
     fn push(&mut self, value: T) {
         Self::push(self, value);
@@ -823,10 +734,9 @@ where
     }
 }
 
-impl<T, C, B> DoubleEndedHeap<T> for ReflectedHeap<T, (), C, B>
+impl<T: Ord, B> DoubleEndedHeap<T> for ReflectedHeap<T, (), B>
 where
-    C: Comparator<T>,
-    B: ReflectedHeapBackend<T, C>,
+    B: ReflectedHeapBackend<T>,
 {
     fn peek_max(&self) -> Option<&T> {
         Self::peek_max(self)
@@ -837,12 +747,11 @@ where
     }
 }
 
-impl<K, V, C, B> MeldableAddressableHeap<K, V> for ReflectedHeap<K, V, C, B>
+impl<K: Ord, V, B> MeldableAddressableHeap<K, V> for ReflectedHeap<K, V, B>
 where
-    C: Comparator<K> + PartialEq,
-    B: ReflectedHeapBackend<K, C>,
+    B: ReflectedHeapBackend<K>,
     B::Min: MeldableAddressableHeap<K, InnerRecord, Handle = TreeHandle, MeldError = MeldError>,
-    B::Max: MeldableAddressableHeap<K, InnerRecord, Handle = TreeHandle, MeldError = MeldError>,
+    B::Max: MeldableAddressableHeap<Reverse<K>, InnerRecord, Handle = TreeHandle, MeldError = MeldError>,
 {
     type MeldError = MeldError;
 
@@ -851,12 +760,11 @@ where
     }
 }
 
-impl<K, V, C, B> MeldableDoubleEndedAddressableHeap<K, V> for ReflectedHeap<K, V, C, B>
+impl<K: Ord, V, B> MeldableDoubleEndedAddressableHeap<K, V> for ReflectedHeap<K, V, B>
 where
-    C: Comparator<K> + PartialEq,
-    B: ReflectedHeapBackend<K, C>,
+    B: ReflectedHeapBackend<K>,
     B::Min: MeldableAddressableHeap<K, InnerRecord, Handle = TreeHandle, MeldError = MeldError>,
-    B::Max: MeldableAddressableHeap<K, InnerRecord, Handle = TreeHandle, MeldError = MeldError>,
+    B::Max: MeldableAddressableHeap<Reverse<K>, InnerRecord, Handle = TreeHandle, MeldError = MeldError>,
 {
     type MeldError = MeldError;
 
@@ -865,12 +773,11 @@ where
     }
 }
 
-impl<T, C, B> MeldableHeap<T> for ReflectedHeap<T, (), C, B>
+impl<T: Ord, B> MeldableHeap<T> for ReflectedHeap<T, (), B>
 where
-    C: Comparator<T> + PartialEq,
-    B: ReflectedHeapBackend<T, C>,
+    B: ReflectedHeapBackend<T>,
     B::Min: MeldableAddressableHeap<T, InnerRecord, Handle = TreeHandle, MeldError = MeldError>,
-    B::Max: MeldableAddressableHeap<T, InnerRecord, Handle = TreeHandle, MeldError = MeldError>,
+    B::Max: MeldableAddressableHeap<Reverse<T>, InnerRecord, Handle = TreeHandle, MeldError = MeldError>,
 {
     type MeldError = MeldError;
 

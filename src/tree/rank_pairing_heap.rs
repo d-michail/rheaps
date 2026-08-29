@@ -1,6 +1,6 @@
 use core::cmp::Ordering;
 
-use crate::array::{Comparator, DecreaseKeyError, InvalidHandle, NaturalOrder};
+use crate::array::{DecreaseKeyError, InvalidHandle};
 use crate::{AddressableHeap, Heap, MeldableAddressableHeap, MeldableHeap};
 
 use super::core::{MeldError, NodeRef, TreeCore, TreeHandle};
@@ -10,17 +10,9 @@ use super::core::{MeldError, NodeRef, TreeCore, TreeHandle};
 /// The heap stores a root list of ranked half-trees. Equal-ranked roots are
 /// linked when a minimum is removed, while a decrease cuts one half-tree and
 /// restores ranks on its former spine.
-pub struct RankPairingHeap<K, V = (), C = NaturalOrder> {
-    core: TreeCore<K, V, C>,
+pub struct RankPairingHeap<K, V = ()> {
+    core: TreeCore<K, V>,
     roots: Vec<NodeRef>,
-}
-
-impl<K: Ord, V> RankPairingHeap<K, V> {
-    /// Creates an empty heap using the natural ordering of keys.
-    #[must_use]
-    pub fn new() -> Self {
-        Self::with_comparator(NaturalOrder)
-    }
 }
 
 impl<K: Ord, V> Default for RankPairingHeap<K, V> {
@@ -29,23 +21,14 @@ impl<K: Ord, V> Default for RankPairingHeap<K, V> {
     }
 }
 
-impl<K, V, C> RankPairingHeap<K, V, C>
-where
-    C: Comparator<K>,
-{
-    /// Creates an empty heap ordered by `compare`.
+impl<K: Ord, V> RankPairingHeap<K, V> {
+    /// Creates an empty heap.
     #[must_use]
-    pub fn with_comparator(compare: C) -> Self {
+    pub fn new() -> Self {
         Self {
-            core: TreeCore::new(compare),
+            core: TreeCore::new(),
             roots: Vec::new(),
         }
-    }
-
-    /// Returns the comparator used to order keys.
-    #[must_use]
-    pub fn comparator(&self) -> &C {
-        self.core.comparator()
     }
 
     /// Inserts an entry and returns its checked handle.
@@ -275,10 +258,7 @@ where
     }
 }
 
-impl<K, C> RankPairingHeap<K, (), C>
-where
-    C: Comparator<K>,
-{
+impl<K: Ord> RankPairingHeap<K, ()> {
     /// Inserts a key into this value-less heap.
     pub fn push(&mut self, key: K) {
         self.insert(key, ());
@@ -296,10 +276,7 @@ where
     }
 }
 
-impl<K, V, C> RankPairingHeap<K, V, C>
-where
-    C: Comparator<K> + PartialEq,
-{
+impl<K: Ord, V> RankPairingHeap<K, V> {
     /// Melds `other` into this heap, consuming the donor on success.
     pub fn meld(&mut self, other: &mut Self) -> Result<(), MeldError> {
         if !self.core.active {
@@ -307,9 +284,6 @@ where
         }
         if !other.core.active {
             return Err(MeldError::DonorConsumed);
-        }
-        if self.core.compare != other.core.compare {
-            return Err(MeldError::IncompatibleComparator);
         }
         self.core.take_arenas_from(&mut other.core);
         self.roots.append(&mut other.roots);
@@ -322,10 +296,7 @@ where
     }
 }
 
-impl<K, V, C> AddressableHeap<K, V> for RankPairingHeap<K, V, C>
-where
-    C: Comparator<K>,
-{
+impl<K: Ord, V> AddressableHeap<K, V> for RankPairingHeap<K, V> {
     type Handle = TreeHandle;
 
     fn push(&mut self, key: K, value: V) -> Self::Handle {
@@ -369,10 +340,7 @@ where
     }
 }
 
-impl<T, C> Heap<T> for RankPairingHeap<T, (), C>
-where
-    C: Comparator<T>,
-{
+impl<T: Ord> Heap<T> for RankPairingHeap<T, ()> {
     fn push(&mut self, value: T) {
         self.push(value);
     }
@@ -394,10 +362,7 @@ where
     }
 }
 
-impl<K, V, C> MeldableAddressableHeap<K, V> for RankPairingHeap<K, V, C>
-where
-    C: Comparator<K> + PartialEq,
-{
+impl<K: Ord, V> MeldableAddressableHeap<K, V> for RankPairingHeap<K, V> {
     type MeldError = MeldError;
 
     fn meld(&mut self, other: &mut Self) -> Result<(), Self::MeldError> {
@@ -405,10 +370,7 @@ where
     }
 }
 
-impl<T, C> MeldableHeap<T> for RankPairingHeap<T, (), C>
-where
-    C: Comparator<T> + PartialEq,
-{
+impl<T: Ord> MeldableHeap<T> for RankPairingHeap<T, ()> {
     type MeldError = MeldError;
 
     fn meld(&mut self, other: &mut Self) -> Result<(), Self::MeldError> {

@@ -1,24 +1,13 @@
 //! Hollow-heap conformance tests adapted from JHeaps' addressable and
 //! mergeable addressable heap test bases.
 
-use core::cmp::Ordering;
-
 use crate::array::{DecreaseKeyError, InvalidHandle};
+use crate::test_support::ReverseKey;
 use crate::{AddressableHeap, Heap, MeldableAddressableHeap, MeldableHeap};
 
 use super::{HollowHeap, MeldError};
 
 const STRESS_SIZE: usize = 2_000;
-
-type Reverse = fn(&i32, &i32) -> Ordering;
-
-fn reverse(left: &i32, right: &i32) -> Ordering {
-    right.cmp(left)
-}
-
-fn reverse_again(left: &i32, right: &i32) -> Ordering {
-    right.cmp(left)
-}
 
 struct Random(u64);
 
@@ -49,7 +38,7 @@ where
 }
 
 #[test]
-fn hollow_heap_orders_natural_and_custom_comparator_keys() {
+fn hollow_heap_orders_keys() {
     let mut heap = HollowHeap::<i32, usize>::new();
     assert_addressable_trait(&mut heap);
     assert!(heap.peek_entry().is_none());
@@ -67,14 +56,6 @@ fn hollow_heap_orders_natural_and_custom_comparator_keys() {
     }
     assert!(heap.is_empty());
 
-    let mut reverse_heap = HollowHeap::<i32, usize, Reverse>::with_comparator(reverse as Reverse);
-    for value in 0..STRESS_SIZE {
-        reverse_heap.insert(value as i32, value);
-    }
-    for expected in (0..STRESS_SIZE).rev() {
-        assert_eq!(reverse_heap.pop_entry(), Some((expected as i32, expected)));
-    }
-
     let mut keys_only = HollowHeap::<i32>::new();
     Heap::push(&mut keys_only, 3);
     Heap::push(&mut keys_only, 1);
@@ -83,6 +64,17 @@ fn hollow_heap_orders_natural_and_custom_comparator_keys() {
     assert_eq!(Heap::pop(&mut keys_only), Some(1));
     assert_eq!(Heap::pop(&mut keys_only), Some(2));
     assert_eq!(Heap::pop(&mut keys_only), Some(3));
+
+    let mut alternate = HollowHeap::<ReverseKey, usize>::new();
+    for value in 0..STRESS_SIZE {
+        alternate.insert(ReverseKey(value as i32), value);
+    }
+    for expected in (0..STRESS_SIZE).rev() {
+        assert_eq!(
+            alternate.pop_entry(),
+            Some((ReverseKey(expected as i32), expected))
+        );
+    }
 }
 
 #[test]
@@ -225,22 +217,22 @@ fn hollow_heap_handles_bulk_deletion_and_reverse_decreases() {
     assert!(heap.is_empty());
     heap.assert_invariants();
 
-    let mut reverse_heap = HollowHeap::<i32, usize, Reverse>::with_comparator(reverse as Reverse);
+    let mut alternate = HollowHeap::<ReverseKey, usize>::new();
     let handles = (0..STRESS_SIZE)
-        .map(|index| reverse_heap.insert(index as i32, index))
+        .map(|index| alternate.insert(ReverseKey(index as i32), index))
         .collect::<Vec<_>>();
     for (index, handle) in handles.iter().copied().enumerate() {
-        reverse_heap
-            .decrease_key(handle, (index + STRESS_SIZE) as i32)
+        alternate
+            .decrease_key(handle, ReverseKey((index + STRESS_SIZE) as i32))
             .unwrap();
     }
     for expected in (STRESS_SIZE..STRESS_SIZE * 2).rev() {
         assert_eq!(
-            reverse_heap.pop_entry(),
-            Some((expected as i32, expected - STRESS_SIZE))
+            alternate.pop_entry(),
+            Some((ReverseKey(expected as i32), expected - STRESS_SIZE))
         );
     }
-    reverse_heap.assert_invariants();
+    alternate.assert_invariants();
 }
 
 #[test]
@@ -279,18 +271,6 @@ fn hollow_heap_melds_move_handle_domains_and_consume_donors() {
         previous = Some(key);
     }
     a.assert_invariants();
-
-    let mut receiver = HollowHeap::<i32, usize, Reverse>::with_comparator(reverse as Reverse);
-    let mut incompatible =
-        HollowHeap::<i32, usize, Reverse>::with_comparator(reverse_again as Reverse);
-    receiver.insert(1, 1);
-    incompatible.insert(2, 2);
-    assert_eq!(
-        receiver.meld(&mut incompatible),
-        Err(MeldError::IncompatibleComparator)
-    );
-    assert_eq!(receiver.pop_entry(), Some((1, 1)));
-    assert_eq!(incompatible.pop_entry(), Some((2, 2)));
 
     let mut keys_a = HollowHeap::<i32>::new();
     let mut keys_b = HollowHeap::<i32>::new();

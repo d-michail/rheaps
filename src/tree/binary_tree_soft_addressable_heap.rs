@@ -1,4 +1,4 @@
-use crate::array::{Comparator, DecreaseKeyError, InvalidHandle, NaturalOrder};
+use crate::array::{DecreaseKeyError, InvalidHandle};
 use crate::{AddressableHeap, MeldableAddressableHeap};
 
 use super::soft_heap_core::{SoftHandle, SoftHeapCore, SoftHeapError, SoftMeldError};
@@ -8,36 +8,20 @@ use super::soft_heap_core::{SoftHandle, SoftHeapCore, SoftHeapError, SoftMeldErr
 /// Keys may be returned out of order according to the configured error rate.
 /// As in JHeaps, key decreases are not supported; values, deletion, and melds
 /// retain checked opaque handles.
-pub struct BinaryTreeSoftAddressableHeap<K, V = (), C = NaturalOrder> {
-    core: SoftHeapCore<K, V, C>,
+pub struct BinaryTreeSoftAddressableHeap<K, V = ()> {
+    core: SoftHeapCore<K, V>,
 }
 
 impl<K: Ord + Clone, V> BinaryTreeSoftAddressableHeap<K, V> {
     /// Creates a heap with an error rate strictly between zero and one.
     pub fn new(error_rate: f64) -> Result<Self, SoftHeapError> {
-        Self::with_comparator(error_rate, NaturalOrder)
+        Ok(Self {
+            core: SoftHeapCore::new(error_rate)?,
+        })
     }
 }
 
-impl<K, V, C> BinaryTreeSoftAddressableHeap<K, V, C>
-where
-    K: Clone,
-    C: Comparator<K>,
-{
-    /// Creates a heap with an error rate strictly between zero and one,
-    /// ordered by `compare`.
-    pub fn with_comparator(error_rate: f64, compare: C) -> Result<Self, SoftHeapError> {
-        Ok(Self {
-            core: SoftHeapCore::new(error_rate, compare)?,
-        })
-    }
-
-    /// Returns the comparator used to order corrupted keys.
-    #[must_use]
-    pub fn comparator(&self) -> &C {
-        self.core.comparator()
-    }
-
+impl<K: Ord + Clone, V> BinaryTreeSoftAddressableHeap<K, V> {
     /// Returns the rank below which keys are never corrupted.
     #[must_use]
     pub const fn rank_limit(&self) -> usize {
@@ -112,11 +96,7 @@ where
     }
 }
 
-impl<K, V, C> BinaryTreeSoftAddressableHeap<K, V, C>
-where
-    K: Clone,
-    C: Comparator<K> + PartialEq,
-{
+impl<K: Ord + Clone, V> BinaryTreeSoftAddressableHeap<K, V> {
     /// Melds `other` into this heap, consuming the donor on success.
     pub fn meld(&mut self, other: &mut Self) -> Result<(), SoftMeldError> {
         if !self.core.active() {
@@ -124,9 +104,6 @@ where
         }
         if !other.core.active() {
             return Err(SoftMeldError::DonorConsumed);
-        }
-        if self.comparator() != other.comparator() {
-            return Err(SoftMeldError::IncompatibleComparator);
         }
         if self.rank_limit() != other.rank_limit() {
             return Err(SoftMeldError::IncompatibleErrorRate);
@@ -136,11 +113,7 @@ where
     }
 }
 
-impl<K, V, C> AddressableHeap<K, V> for BinaryTreeSoftAddressableHeap<K, V, C>
-where
-    K: Clone,
-    C: Comparator<K>,
-{
+impl<K: Ord + Clone, V> AddressableHeap<K, V> for BinaryTreeSoftAddressableHeap<K, V> {
     type Handle = SoftHandle;
 
     fn push(&mut self, key: K, value: V) -> Self::Handle {
@@ -184,11 +157,7 @@ where
     }
 }
 
-impl<K, V, C> MeldableAddressableHeap<K, V> for BinaryTreeSoftAddressableHeap<K, V, C>
-where
-    K: Clone,
-    C: Comparator<K> + PartialEq,
-{
+impl<K: Ord + Clone, V> MeldableAddressableHeap<K, V> for BinaryTreeSoftAddressableHeap<K, V> {
     type MeldError = SoftMeldError;
 
     fn meld(&mut self, other: &mut Self) -> Result<(), Self::MeldError> {

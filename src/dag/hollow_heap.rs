@@ -2,7 +2,7 @@ use core::cmp::Ordering;
 use core::sync::atomic::{AtomicU64, Ordering as AtomicOrdering};
 use std::collections::HashMap;
 
-use crate::array::{Comparator, DecreaseKeyError, InvalidHandle, NaturalOrder};
+use crate::array::{DecreaseKeyError, InvalidHandle};
 use crate::tree::MeldError;
 use crate::{AddressableHeap, Heap, MeldableAddressableHeap, MeldableHeap};
 
@@ -152,21 +152,30 @@ impl<K, V> DomainArena<K, V> {
 /// The implementation uses slot arenas rather than pointers. Entries and
 /// nodes have independent stable storage, so opaque handles survive moves and
 /// successful melds without unsafe code or a binary-heap substitute.
-pub struct HollowHeap<K, V = (), C = NaturalOrder> {
+pub struct HollowHeap<K, V = ()> {
     root: Option<NodeRef>,
     len: usize,
     nodes: usize,
-    compare: C,
     active: bool,
     own_domain: u64,
     arenas: HashMap<u64, DomainArena<K, V>>,
 }
 
 impl<K: Ord, V> HollowHeap<K, V> {
-    /// Creates an empty heap using the natural ordering of keys.
+    /// Creates an empty heap.
     #[must_use]
     pub fn new() -> Self {
-        Self::with_comparator(NaturalOrder)
+        let own_domain = next_domain_id();
+        let mut arenas = HashMap::new();
+        arenas.insert(own_domain, DomainArena::new());
+        Self {
+            root: None,
+            len: 0,
+            nodes: 0,
+            active: true,
+            own_domain,
+            arenas,
+        }
     }
 }
 
@@ -176,33 +185,7 @@ impl<K: Ord, V> Default for HollowHeap<K, V> {
     }
 }
 
-impl<K, V, C> HollowHeap<K, V, C>
-where
-    C: Comparator<K>,
-{
-    /// Creates an empty heap ordered by `compare`.
-    #[must_use]
-    pub fn with_comparator(compare: C) -> Self {
-        let own_domain = next_domain_id();
-        let mut arenas = HashMap::new();
-        arenas.insert(own_domain, DomainArena::new());
-        Self {
-            root: None,
-            len: 0,
-            nodes: 0,
-            compare,
-            active: true,
-            own_domain,
-            arenas,
-        }
-    }
-
-    /// Returns the comparator used to order keys.
-    #[must_use]
-    pub fn comparator(&self) -> &C {
-        &self.compare
-    }
-
+impl<K: Ord, V> HollowHeap<K, V> {
     /// Inserts an entry and returns its checked handle.
     ///
     /// # Panics
@@ -285,7 +268,7 @@ where
         let item = self
             .validate(handle)
             .map_err(DecreaseKeyError::InvalidHandle)?;
-        let order = self.compare.compare(&key, &self.item(item).key);
+        let order = key.cmp(&self.item(item).key);
         if order == Ordering::Greater {
             return Err(DecreaseKeyError::NotDecreased);
         }
@@ -565,8 +548,7 @@ where
             .node(second)
             .item
             .expect("only full hollow-heap nodes can be linked");
-        self.compare
-            .compare(&self.item(first_item).key, &self.item(second_item).key)
+        self.item(first_item).key.cmp(&self.item(second_item).key)
     }
 
     #[cfg(test)]
@@ -624,10 +606,7 @@ where
     }
 }
 
-impl<K, C> HollowHeap<K, (), C>
-where
-    C: Comparator<K>,
-{
+impl<K: Ord> HollowHeap<K, ()> {
     /// Inserts a key into this value-less heap.
     ///
     /// # Panics
@@ -649,10 +628,7 @@ where
     }
 }
 
-impl<K, V, C> HollowHeap<K, V, C>
-where
-    C: Comparator<K> + PartialEq,
-{
+impl<K: Ord, V> HollowHeap<K, V> {
     /// Melds `other` into this heap, consuming the donor on success.
     ///
     /// All donor handles become valid handles of this heap without moving
@@ -664,10 +640,6 @@ where
         if !other.active {
             return Err(MeldError::DonorConsumed);
         }
-        if self.compare != other.compare {
-            return Err(MeldError::IncompatibleComparator);
-        }
-
         let other_root = other.root;
         self.arenas.extend(other.arenas.drain());
         self.root = self.link_options(self.root, other_root);
@@ -682,10 +654,7 @@ where
     }
 }
 
-impl<K, V, C> AddressableHeap<K, V> for HollowHeap<K, V, C>
-where
-    C: Comparator<K>,
-{
+impl<K: Ord, V> AddressableHeap<K, V> for HollowHeap<K, V> {
     type Handle = HollowHandle;
 
     fn push(&mut self, key: K, value: V) -> Self::Handle {
@@ -729,10 +698,7 @@ where
     }
 }
 
-impl<T, C> Heap<T> for HollowHeap<T, (), C>
-where
-    C: Comparator<T>,
-{
+impl<T: Ord> Heap<T> for HollowHeap<T, ()> {
     fn push(&mut self, value: T) {
         Self::push(self, value);
     }
@@ -754,10 +720,7 @@ where
     }
 }
 
-impl<K, V, C> MeldableAddressableHeap<K, V> for HollowHeap<K, V, C>
-where
-    C: Comparator<K> + PartialEq,
-{
+impl<K: Ord, V> MeldableAddressableHeap<K, V> for HollowHeap<K, V> {
     type MeldError = MeldError;
 
     fn meld(&mut self, other: &mut Self) -> Result<(), Self::MeldError> {
@@ -765,10 +728,7 @@ where
     }
 }
 
-impl<T, C> MeldableHeap<T> for HollowHeap<T, (), C>
-where
-    C: Comparator<T> + PartialEq,
-{
+impl<T: Ord> MeldableHeap<T> for HollowHeap<T, ()> {
     type MeldError = MeldError;
 
     fn meld(&mut self, other: &mut Self) -> Result<(), Self::MeldError> {

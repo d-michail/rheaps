@@ -2,7 +2,7 @@ use core::cmp::Ordering;
 use core::fmt;
 use std::collections::{BTreeMap, HashMap};
 
-use crate::array::{Comparator, InvalidHandle};
+use crate::array::InvalidHandle;
 
 use super::core::next_domain_id;
 
@@ -107,8 +107,6 @@ pub enum SoftMeldError {
     ReceiverConsumed,
     /// The donor heap was previously used as a meld donor.
     DonorConsumed,
-    /// The heaps use unequal comparators.
-    IncompatibleComparator,
     /// The heaps have incompatible error-rate rank limits.
     IncompatibleErrorRate,
 }
@@ -118,9 +116,6 @@ impl fmt::Display for SoftMeldError {
         match self {
             Self::ReceiverConsumed => formatter.write_str("a meld donor cannot be reused"),
             Self::DonorConsumed => formatter.write_str("the donor heap was already consumed"),
-            Self::IncompatibleComparator => {
-                formatter.write_str("cannot meld heaps using different comparators")
-            }
             Self::IncompatibleErrorRate => {
                 formatter.write_str("cannot meld heaps with different error rates")
             }
@@ -229,8 +224,7 @@ impl<K> NodeArena<K> {
 }
 
 /// Shared Kaplan-Zwick binary-tree soft-heap storage.
-pub(crate) struct SoftHeapCore<K, V, C> {
-    compare: C,
+pub(crate) struct SoftHeapCore<K, V> {
     rank_limit: usize,
     roots: Vec<SoftNodeRef>,
     item_arenas: HashMap<u64, ItemArena<K, V>>,
@@ -240,12 +234,8 @@ pub(crate) struct SoftHeapCore<K, V, C> {
     active: bool,
 }
 
-impl<K, V, C> SoftHeapCore<K, V, C>
-where
-    K: Clone,
-    C: Comparator<K>,
-{
-    pub(crate) fn new(error_rate: f64, compare: C) -> Result<Self, SoftHeapError> {
+impl<K: Ord + Clone, V> SoftHeapCore<K, V> {
+    pub(crate) fn new(error_rate: f64) -> Result<Self, SoftHeapError> {
         if error_rate <= 0.0 {
             return Err(SoftHeapError::NonPositiveErrorRate);
         }
@@ -260,7 +250,6 @@ where
         let mut node_arenas = HashMap::new();
         node_arenas.insert(own_domain, NodeArena::new());
         Ok(Self {
-            compare,
             rank_limit,
             roots: Vec::new(),
             item_arenas,
@@ -269,10 +258,6 @@ where
             len: 0,
             active: true,
         })
-    }
-
-    pub(crate) fn comparator(&self) -> &C {
-        &self.compare
     }
 
     pub(crate) const fn rank_limit(&self) -> usize {
@@ -553,16 +538,16 @@ where
 
     fn minimum_root(&self) -> Option<SoftNodeRef> {
         self.roots.iter().copied().min_by(|left, right| {
-            self.compare.compare(
-                self.node(*left)
-                    .c_key
-                    .as_ref()
-                    .expect("root must have a corrupted key"),
-                self.node(*right)
-                    .c_key
-                    .as_ref()
-                    .expect("root must have a corrupted key"),
-            )
+            self.node(*left)
+                .c_key
+                .as_ref()
+                .expect("root must have a corrupted key")
+                .cmp(
+                    self.node(*right)
+                        .c_key
+                        .as_ref()
+                        .expect("root must have a corrupted key"),
+                )
         })
     }
 
@@ -639,16 +624,15 @@ where
             let selected_right = match (left, right) {
                 (None, Some(_)) => true,
                 (Some(left), Some(right)) => {
-                    self.compare.compare(
-                        self.node(left)
+                    self.node(left)
+                        .c_key
+                        .as_ref()
+                        .expect("non-empty child must have a corrupted key")
+                        > self
+                            .node(right)
                             .c_key
                             .as_ref()
-                            .expect("non-empty child must have a corrupted key"),
-                        self.node(right)
-                            .c_key
-                            .as_ref()
-                            .expect("non-empty child must have a corrupted key"),
-                    ) == Ordering::Greater
+                            .expect("non-empty child must have a corrupted key")
                 }
                 (Some(_), None) => false,
                 (None, None) => unreachable!("leaf was handled above"),

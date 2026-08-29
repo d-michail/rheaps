@@ -1,6 +1,6 @@
 use core::cmp::Ordering;
 
-use crate::array::{Comparator, DecreaseKeyError, InvalidHandle, NaturalOrder};
+use crate::array::{DecreaseKeyError, InvalidHandle};
 use crate::{AddressableHeap, Heap, MeldableAddressableHeap, MeldableHeap};
 
 use super::core::{MeldError, NodeRef, TreeCore, TreeHandle};
@@ -11,18 +11,10 @@ use super::core::{MeldError, NodeRef, TreeCore, TreeHandle};
 /// immediately linked into the main pairing tree. The pool has a cached
 /// minimum and is periodically consolidated at a logarithmic-size threshold,
 /// retaining the deferred-work design of costless-meld pairing heaps.
-pub struct CostlessMeldPairingHeap<K, V = (), C = NaturalOrder> {
-    core: TreeCore<K, V, C>,
+pub struct CostlessMeldPairingHeap<K, V = ()> {
+    core: TreeCore<K, V>,
     decrease_pool: Vec<NodeRef>,
     pool_minimum: Option<NodeRef>,
-}
-
-impl<K: Ord, V> CostlessMeldPairingHeap<K, V> {
-    /// Creates an empty heap using the natural ordering of keys.
-    #[must_use]
-    pub fn new() -> Self {
-        Self::with_comparator(NaturalOrder)
-    }
 }
 
 impl<K: Ord, V> Default for CostlessMeldPairingHeap<K, V> {
@@ -31,24 +23,15 @@ impl<K: Ord, V> Default for CostlessMeldPairingHeap<K, V> {
     }
 }
 
-impl<K, V, C> CostlessMeldPairingHeap<K, V, C>
-where
-    C: Comparator<K>,
-{
-    /// Creates an empty heap ordered by `compare`.
+impl<K: Ord, V> CostlessMeldPairingHeap<K, V> {
+    /// Creates an empty heap.
     #[must_use]
-    pub fn with_comparator(compare: C) -> Self {
+    pub fn new() -> Self {
         Self {
-            core: TreeCore::new(compare),
+            core: TreeCore::new(),
             decrease_pool: Vec::new(),
             pool_minimum: None,
         }
-    }
-
-    /// Returns the comparator used to order keys.
-    #[must_use]
-    pub fn comparator(&self) -> &C {
-        self.core.comparator()
     }
 
     /// Inserts an entry and returns its checked handle.
@@ -291,10 +274,7 @@ where
     }
 }
 
-impl<K, C> CostlessMeldPairingHeap<K, (), C>
-where
-    C: Comparator<K>,
-{
+impl<K: Ord> CostlessMeldPairingHeap<K, ()> {
     /// Inserts a key into this value-less heap.
     pub fn push(&mut self, key: K) {
         self.insert(key, ());
@@ -312,10 +292,7 @@ where
     }
 }
 
-impl<K, V, C> CostlessMeldPairingHeap<K, V, C>
-where
-    C: Comparator<K> + PartialEq,
-{
+impl<K: Ord, V> CostlessMeldPairingHeap<K, V> {
     /// Melds `other` into this heap, consuming the donor on success.
     pub fn meld(&mut self, other: &mut Self) -> Result<(), MeldError> {
         if !self.core.active {
@@ -323,9 +300,6 @@ where
         }
         if !other.core.active {
             return Err(MeldError::DonorConsumed);
-        }
-        if self.core.compare != other.core.compare {
-            return Err(MeldError::IncompatibleComparator);
         }
         let other_root = other.core.root;
         self.core.take_arenas_from(&mut other.core);
@@ -341,10 +315,7 @@ where
     }
 }
 
-impl<K, V, C> AddressableHeap<K, V> for CostlessMeldPairingHeap<K, V, C>
-where
-    C: Comparator<K>,
-{
+impl<K: Ord, V> AddressableHeap<K, V> for CostlessMeldPairingHeap<K, V> {
     type Handle = TreeHandle;
 
     fn push(&mut self, key: K, value: V) -> Self::Handle {
@@ -388,10 +359,7 @@ where
     }
 }
 
-impl<T, C> Heap<T> for CostlessMeldPairingHeap<T, (), C>
-where
-    C: Comparator<T>,
-{
+impl<T: Ord> Heap<T> for CostlessMeldPairingHeap<T, ()> {
     fn push(&mut self, value: T) {
         self.push(value);
     }
@@ -413,10 +381,7 @@ where
     }
 }
 
-impl<K, V, C> MeldableAddressableHeap<K, V> for CostlessMeldPairingHeap<K, V, C>
-where
-    C: Comparator<K> + PartialEq,
-{
+impl<K: Ord, V> MeldableAddressableHeap<K, V> for CostlessMeldPairingHeap<K, V> {
     type MeldError = MeldError;
 
     fn meld(&mut self, other: &mut Self) -> Result<(), Self::MeldError> {
@@ -424,10 +389,7 @@ where
     }
 }
 
-impl<T, C> MeldableHeap<T> for CostlessMeldPairingHeap<T, (), C>
-where
-    C: Comparator<T> + PartialEq,
-{
+impl<T: Ord> MeldableHeap<T> for CostlessMeldPairingHeap<T, ()> {
     type MeldError = MeldError;
 
     fn meld(&mut self, other: &mut Self) -> Result<(), Self::MeldError> {

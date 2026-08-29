@@ -11,7 +11,7 @@ pub use addressable_heap::{
     AddressableHandle, BinaryArrayAddressableHeap, DaryArrayAddressableHeap, DecreaseKeyError,
     IncreaseKeyError, InvalidHandle,
 };
-pub use binary_array_heap::{BinaryArrayHeap, Comparator, NaturalOrder};
+pub use binary_array_heap::BinaryArrayHeap;
 pub use binary_array_integer_value_heap::BinaryArrayIntegerValueHeap;
 pub use binary_array_weak_heap::{BinaryArrayBulkInsertWeakHeap, BinaryArrayWeakHeap};
 pub use dary_array_heap::{DaryArrayHeap, InvalidDegree};

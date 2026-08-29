@@ -5,7 +5,7 @@ use std::collections::HashMap;
 #[cfg(test)]
 use std::collections::HashSet;
 
-use crate::array::{Comparator, DecreaseKeyError, InvalidHandle};
+use crate::array::{DecreaseKeyError, InvalidHandle};
 
 static NEXT_DOMAIN_ID: AtomicU64 = AtomicU64::new(1);
 
@@ -23,8 +23,6 @@ pub enum MeldError {
     ReceiverConsumed,
     /// The donor heap was previously used as a meld donor.
     DonorConsumed,
-    /// The two heaps use unequal comparators.
-    IncompatibleComparator,
 }
 
 impl fmt::Display for MeldError {
@@ -32,9 +30,6 @@ impl fmt::Display for MeldError {
         match self {
             Self::ReceiverConsumed => formatter.write_str("a meld donor cannot be reused"),
             Self::DonorConsumed => formatter.write_str("the donor heap was already consumed"),
-            Self::IncompatibleComparator => {
-                formatter.write_str("cannot meld heaps using different comparators")
-            }
         }
     }
 }
@@ -113,35 +108,26 @@ impl<K, V> Arena<K, V> {
 /// Every heap that has contributed nodes retains a small arena in the receiver.
 /// This permits a donor's handles to keep their identity after a meld without
 /// moving nodes or weakening checked handle validation.
-pub(crate) struct TreeCore<K, V, C> {
+pub(crate) struct TreeCore<K, V> {
     pub(crate) root: Option<NodeRef>,
     pub(crate) len: usize,
-    pub(crate) compare: C,
     pub(crate) active: bool,
     own_domain: u64,
     arenas: HashMap<u64, Arena<K, V>>,
 }
 
-impl<K, V, C> TreeCore<K, V, C>
-where
-    C: Comparator<K>,
-{
-    pub(crate) fn new(compare: C) -> Self {
+impl<K: Ord, V> TreeCore<K, V> {
+    pub(crate) fn new() -> Self {
         let own_domain = next_domain_id();
         let mut arenas = HashMap::new();
         arenas.insert(own_domain, Arena::new());
         Self {
             root: None,
             len: 0,
-            compare,
             active: true,
             own_domain,
             arenas,
         }
-    }
-
-    pub(crate) fn comparator(&self) -> &C {
-        &self.compare
     }
 
     pub(crate) fn insert_node(&mut self, key: K, value: V) -> NodeRef {
@@ -210,12 +196,11 @@ where
     }
 
     pub(crate) fn compare_nodes(&self, left: NodeRef, right: NodeRef) -> Ordering {
-        self.compare
-            .compare(&self.node(left).key, &self.node(right).key)
+        self.node(left).key.cmp(&self.node(right).key)
     }
 
     pub(crate) fn compare_key(&self, key: &K, node: NodeRef) -> Ordering {
-        self.compare.compare(key, &self.node(node).key)
+        key.cmp(&self.node(node).key)
     }
 
     pub(crate) fn set_key(
@@ -358,10 +343,7 @@ where
                         child_entry.position, position,
                         "child position is inconsistent"
                     );
-                    assert!(
-                        self.compare.compare(&entry.key, &child_entry.key) != Ordering::Greater,
-                        "heap order is violated"
-                    );
+                    assert!(entry.key <= child_entry.key, "heap order is violated");
                     stack.push((*child, Some(node)));
                 }
             }
