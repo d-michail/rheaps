@@ -9,7 +9,7 @@ mod min_max_binary_array_double_ended_heap;
 
 pub use addressable_heap::{
     AddressableHandle, BinaryArrayAddressableHeap, DaryArrayAddressableHeap, DecreaseKeyError,
-    InvalidHandle,
+    IncreaseKeyError, InvalidHandle,
 };
 pub use binary_array_heap::{BinaryArrayHeap, Comparator, NaturalOrder};
 pub use binary_array_integer_value_heap::BinaryArrayIntegerValueHeap;

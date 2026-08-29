@@ -51,6 +51,8 @@ pub enum DecreaseKeyError {
     /// For example, radix heaps require keys to be no less than their last
     /// deleted key.
     InvalidKey,
+    /// The heap deliberately does not support key decreases.
+    Unsupported,
 }
 
 impl fmt::Display for DecreaseKeyError {
@@ -61,11 +63,35 @@ impl fmt::Display for DecreaseKeyError {
                 formatter.write_str("new key must not be greater than the old key")
             }
             Self::InvalidKey => formatter.write_str("new key violates the heap's key restrictions"),
+            Self::Unsupported => {
+                formatter.write_str("key decreases are not supported by this heap")
+            }
         }
     }
 }
 
 impl std::error::Error for DecreaseKeyError {}
+
+/// An error returned when increasing an entry's key in a double-ended
+/// addressable heap.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum IncreaseKeyError {
+    /// The handle was not valid for this heap.
+    InvalidHandle(InvalidHandle),
+    /// The proposed key has higher priority than the existing key.
+    NotIncreased,
+}
+
+impl fmt::Display for IncreaseKeyError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::InvalidHandle(error) => error.fmt(formatter),
+            Self::NotIncreased => formatter.write_str("new key must not be less than the old key"),
+        }
+    }
+}
+
+impl std::error::Error for IncreaseKeyError {}
 
 struct Entry<K, V> {
     key: K,

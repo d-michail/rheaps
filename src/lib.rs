@@ -70,6 +70,24 @@ pub trait DoubleEndedHeap<T>: Heap<T> {
     fn pop_max(&mut self) -> Option<T>;
 }
 
+/// An addressable heap that supports efficient access to both extrema.
+pub trait DoubleEndedAddressableHeap<K, V>: AddressableHeap<K, V> {
+    /// Returns the handle, key, and value of a maximum entry, if present.
+    fn peek_max(&self) -> Option<(Self::Handle, &K, &V)>;
+
+    /// Removes and returns a maximum entry, if present.
+    fn pop_max(&mut self) -> Option<(K, V)>;
+
+    /// Increases the key identified by `handle`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for an invalid handle or a key with higher priority
+    /// than the current one.
+    fn increase_key(&mut self, handle: Self::Handle, key: K)
+    -> Result<(), array::IncreaseKeyError>;
+}
+
 /// A min-oriented heap whose entries are addressed by stable handles.
 ///
 /// A handle is an opaque capability returned from [`Self::push`]. Its validity
@@ -153,6 +171,15 @@ pub trait MeldableHeap<T>: Heap<T> {
 
 /// An addressable heap that can efficiently meld another heap.
 pub trait MeldableAddressableHeap<K, V>: AddressableHeap<K, V> {
+    /// Error returned when a meld cannot be performed.
+    type MeldError;
+
+    /// Melds `other` into this heap.
+    fn meld(&mut self, other: &mut Self) -> Result<(), Self::MeldError>;
+}
+
+/// A double-ended addressable heap that can efficiently meld another heap.
+pub trait MeldableDoubleEndedAddressableHeap<K, V>: DoubleEndedAddressableHeap<K, V> {
     /// Error returned when a meld cannot be performed.
     type MeldError;
 

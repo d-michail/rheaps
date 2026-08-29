@@ -12,19 +12,21 @@ collection of priority queues.
 - Complete monotone radix heap family: `u32`, `u64`, finite `f64`, and
   arbitrary-sized unsigned (`num_bigint::BigUint`) key heaps, each with an
   addressable counterpart and checked monotonic-key operations
-- Tree heaps: leftist, skew, pairing, pure/rank/costless-meld pairing, and
-  Fibonacci/simple/strict Fibonacci heaps (all with addressable handles and
-  meld support), plus the explicit binary-tree addressable heap
+- Complete tree heap family: explicit binary and power-of-two d-ary
+  addressable heaps; Kaplan-Zwick binary-tree soft heaps; leftist, skew,
+  pairing, pure/rank/costless-meld pairing, and Fibonacci/simple/strict
+  Fibonacci heaps; plus reflected Fibonacci and pairing double-ended heaps
 - Natural or custom ordering where supported, with checked opaque handles for
-  addressable heaps
+  addressable heaps. Reflected heaps implement min/max addressable operations,
+  including `increase_key`, through `DoubleEndedAddressableHeap`.
 
 ## Porting order
 
 1. ~~Array heaps: binary, d-ary, weak, min-max, and addressable variants~~
 2. ~~Monotone radix heaps~~
-3. Tree heaps: ~~leftist, skew, pairing, Fibonacci, simple Fibonacci,
-   strict Fibonacci, pure/rank/costless-meld pairing, and explicit binary-tree
-   addressable heaps~~; soft, reflected, and related variants remain
+3. ~~Tree heaps: explicit binary/d-ary addressable, soft, leftist, skew,
+   pairing, Fibonacci, simple Fibonacci, strict Fibonacci,
+   pure/rank/costless-meld pairing, and reflected variants~~
 4. DAG and remaining double-ended heaps
 
 The crate uses Rust ownership rather than Java exceptions: `peek` returns

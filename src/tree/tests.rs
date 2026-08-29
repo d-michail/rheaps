@@ -2,13 +2,14 @@
 
 use core::cmp::Ordering;
 
-use crate::array::{DecreaseKeyError, InvalidHandle};
-use crate::{AddressableHeap, Heap};
+use crate::array::{DecreaseKeyError, IncreaseKeyError, InvalidHandle};
+use crate::{AddressableHeap, DoubleEndedAddressableHeap, DoubleEndedHeap, Heap};
 
 use super::{
-    BinaryTreeAddressableHeap, CostlessMeldPairingHeap, FibonacciHeap, LeftistHeap, MeldError,
-    PairingHeap, PurePairingHeap, RankPairingHeap, SimpleFibonacciHeap, SkewHeap,
-    StrictFibonacciHeap, TreeHandle,
+    BinaryTreeAddressableHeap, BinaryTreeSoftAddressableHeap, BinaryTreeSoftHeap,
+    CostlessMeldPairingHeap, DaryTreeAddressableHeap, FibonacciHeap, LeftistHeap, MeldError,
+    PairingHeap, PurePairingHeap, RankPairingHeap, ReflectedFibonacciHeap, ReflectedPairingHeap,
+    SimpleFibonacciHeap, SkewHeap, SoftHeapError, SoftMeldError, StrictFibonacciHeap,
 };
 
 const STRESS_SIZE: i32 = 2_000;
@@ -40,8 +41,8 @@ where
     H: Heap<i32>,
 {
     let mut heap = make();
-    assert_eq!(heap.peek(), None);
-    assert_eq!(heap.pop(), None);
+    assert!(heap.peek().is_none());
+    assert!(heap.pop().is_none());
     for value in (0..STRESS_SIZE).rev() {
         heap.push(value);
     }
@@ -76,13 +77,14 @@ where
     }
 }
 
-fn exercise_addressable_heap<H>(make: impl Fn() -> H + Copy, reverse: bool)
+fn exercise_addressable_heap<H>(make: impl Fn() -> H, reverse: bool)
 where
-    H: AddressableHeap<i32, usize, Handle = TreeHandle>,
+    H: AddressableHeap<i32, usize>,
+    H::Handle: Copy + Eq,
 {
     let mut heap = make();
-    assert_eq!(heap.peek(), None);
-    assert_eq!(heap.pop(), None);
+    assert!(heap.peek().is_none());
+    assert!(heap.pop().is_none());
 
     let handles = (0..256)
         .map(|key| heap.push(key, key as usize))
@@ -140,11 +142,12 @@ where
 
 fn exercise_addressable_random_operations<H>(make: impl Fn() -> H, reverse: bool)
 where
-    H: AddressableHeap<i32, usize, Handle = TreeHandle>,
+    H: AddressableHeap<i32, usize>,
+    H::Handle: Copy + Eq,
 {
     let mut heap = make();
     let mut random = Random(3);
-    let mut entries = Vec::<Option<(i32, TreeHandle)>>::new();
+    let mut entries = Vec::<Option<(i32, H::Handle)>>::new();
 
     for value in 0..STRESS_SIZE as usize {
         let key = random.next_i32();
@@ -207,7 +210,8 @@ where
 
 fn exercise_binary_addressable_heap<H>(make: impl Fn() -> H + Copy, reverse: bool)
 where
-    H: AddressableHeap<i32, usize, Handle = TreeHandle>,
+    H: AddressableHeap<i32, usize>,
+    H::Handle: Copy + Eq,
 {
     exercise_addressable_heap(make, reverse);
     let mut random = Random(2);
@@ -238,6 +242,128 @@ where
         }
         previous = Some(key);
     }
+}
+
+fn expected_extreme(
+    entries: &[Option<(i32, impl Copy)>],
+    reverse: bool,
+    maximum: bool,
+) -> Option<i32> {
+    entries
+        .iter()
+        .filter_map(|entry| entry.as_ref().map(|(key, _)| *key))
+        .reduce(|left, right| {
+            let order = if reverse {
+                right.cmp(&left)
+            } else {
+                left.cmp(&right)
+            };
+            if (maximum && order == Ordering::Less) || (!maximum && order == Ordering::Greater) {
+                right
+            } else {
+                left
+            }
+        })
+}
+
+fn exercise_double_ended_addressable_heap<H>(make: impl Fn() -> H, reverse: bool)
+where
+    H: AddressableHeap<i32, usize> + DoubleEndedAddressableHeap<i32, usize>,
+    H::Handle: Copy + Eq,
+{
+    let mut heap = make();
+    assert!(heap.peek().is_none());
+    assert!(heap.peek_max().is_none());
+    assert!(heap.pop().is_none());
+    assert!(heap.pop_max().is_none());
+
+    let first = heap.push(3, 0);
+    let second = heap.push(1, 1);
+    let third = heap.push(5, 2);
+    assert_eq!(
+        heap.peek().map(|(_, key, _)| *key),
+        Some(if reverse { 5 } else { 1 })
+    );
+    assert_eq!(
+        heap.peek_max().map(|(_, key, _)| *key),
+        Some(if reverse { 1 } else { 5 })
+    );
+    let decreased = if reverse { 6 } else { 0 };
+    heap.decrease_key(first, decreased).unwrap();
+    let increased = if reverse { 0 } else { 7 };
+    heap.increase_key(second, increased).unwrap();
+    assert_eq!(
+        heap.increase_key(third, if reverse { 6 } else { 4 }),
+        Err(IncreaseKeyError::NotIncreased)
+    );
+    assert_eq!(
+        heap.decrease_key(third, if reverse { 4 } else { 6 }),
+        Err(DecreaseKeyError::NotDecreased)
+    );
+    assert_eq!(heap.delete(first), Ok((decreased, 0)));
+    assert_eq!(heap.key(first), Err(InvalidHandle::Stale));
+
+    let mut foreign = make();
+    let foreign_handle = foreign.push(10, 10);
+    assert_eq!(
+        heap.increase_key(foreign_handle, 11),
+        Err(IncreaseKeyError::InvalidHandle(InvalidHandle::ForeignHeap))
+    );
+
+    let mut entries = vec![None, Some((increased, second)), Some((5, third))];
+    let mut random = Random(9);
+    for value in 3..STRESS_SIZE as usize {
+        let key = random.next_i32();
+        entries.push(Some((key, heap.push(key, value))));
+    }
+
+    for _ in 0..STRESS_SIZE {
+        let index = (random.next_i32() as u32 as usize) % entries.len();
+        if let Some((key, handle)) = entries[index] {
+            match random.next_i32() & 3 {
+                0 => {
+                    let next = if reverse {
+                        key.saturating_add((random.next_i32() as u32 & 255) as i32)
+                    } else {
+                        key.saturating_sub((random.next_i32() as u32 & 255) as i32)
+                    };
+                    heap.decrease_key(handle, next).unwrap();
+                    entries[index] = Some((next, handle));
+                }
+                1 => {
+                    let next = if reverse {
+                        key.saturating_sub((random.next_i32() as u32 & 255) as i32)
+                    } else {
+                        key.saturating_add((random.next_i32() as u32 & 255) as i32)
+                    };
+                    heap.increase_key(handle, next).unwrap();
+                    entries[index] = Some((next, handle));
+                }
+                2 => {
+                    let expected = expected_extreme(&entries, reverse, false).unwrap();
+                    let (popped, value) = heap.pop().unwrap();
+                    assert_eq!(popped, expected);
+                    assert_eq!(entries[value].map(|(entry, _)| entry), Some(popped));
+                    entries[value] = None;
+                }
+                _ => {
+                    let expected = expected_extreme(&entries, reverse, true).unwrap();
+                    let (popped, value) = heap.pop_max().unwrap();
+                    assert_eq!(popped, expected);
+                    assert_eq!(entries[value].map(|(entry, _)| entry), Some(popped));
+                    entries[value] = None;
+                }
+            }
+        }
+    }
+
+    while !heap.is_empty() {
+        let expected = expected_extreme(&entries, reverse, false).unwrap();
+        let (key, value) = heap.pop().unwrap();
+        assert_eq!(key, expected);
+        entries[value] = None;
+    }
+    assert!(entries.iter().all(Option::is_none));
 }
 
 macro_rules! exercise_meld {
@@ -278,6 +404,147 @@ macro_rules! exercise_meld {
 }
 
 #[test]
+fn dary_tree_addressable_heap_enforces_power_of_two_branching() {
+    assert!(DaryTreeAddressableHeap::<i32, ()>::new(0).is_err());
+    assert!(DaryTreeAddressableHeap::<i32, ()>::new(3).is_err());
+    assert!(DaryTreeAddressableHeap::<i32, ()>::new(2).is_ok());
+}
+
+#[test]
+fn soft_heaps_validate_error_rates_and_preserve_every_key() {
+    assert!(matches!(
+        BinaryTreeSoftHeap::<i32>::new(0.0),
+        Err(SoftHeapError::NonPositiveErrorRate)
+    ));
+    assert!(matches!(
+        BinaryTreeSoftHeap::<i32>::new(-0.5),
+        Err(SoftHeapError::NonPositiveErrorRate)
+    ));
+    assert!(matches!(
+        BinaryTreeSoftHeap::<i32>::new(1.0),
+        Err(SoftHeapError::ErrorRateNotBelowOne)
+    ));
+    assert!(matches!(
+        BinaryTreeSoftHeap::<i32>::new(f64::NAN),
+        Err(SoftHeapError::ErrorRateNotBelowOne)
+    ));
+
+    let mut heap = BinaryTreeSoftHeap::new(0.5).unwrap();
+    for key in (0..STRESS_SIZE).rev() {
+        heap.insert(key);
+    }
+    let mut keys = Vec::new();
+    while let Some(key) = heap.pop() {
+        keys.push(key);
+    }
+    keys.sort_unstable();
+    assert_eq!(keys, (0..STRESS_SIZE).collect::<Vec<_>>());
+
+    let mut reverse_heap = BinaryTreeSoftHeap::with_comparator(0.5, reverse as Reverse).unwrap();
+    for key in 0..32 {
+        reverse_heap.insert(key);
+    }
+    for expected in (0..32).rev() {
+        assert_eq!(reverse_heap.pop(), Some(expected));
+    }
+
+    let mut receiver = BinaryTreeSoftHeap::new(0.5).unwrap();
+    let mut donor = BinaryTreeSoftHeap::new(0.5).unwrap();
+    receiver.insert(2);
+    donor.insert(1);
+    receiver.meld(&mut donor).unwrap();
+    assert_eq!(receiver.pop(), Some(1));
+    assert_eq!(receiver.pop(), Some(2));
+    assert_eq!(donor.try_insert(3), Err(SoftMeldError::ReceiverConsumed));
+}
+
+#[test]
+fn soft_addressable_heaps_enforce_handles_and_meld_rules() {
+    let mut heap = BinaryTreeSoftAddressableHeap::new(0.5).unwrap();
+    let first = heap.insert(3, 3);
+    let second = heap.insert(1, 1);
+    let third = heap.insert(2, 2);
+    heap.set_value(second, 10).unwrap();
+    assert_eq!(heap.value(second), Ok(&10));
+    assert_eq!(
+        heap.decrease_key(second, 0),
+        Err(DecreaseKeyError::Unsupported)
+    );
+    assert_eq!(heap.delete(third), Ok((2, 2)));
+    assert_eq!(heap.key(third), Err(InvalidHandle::Stale));
+    let mut seen = vec![heap.delete(first).unwrap().0, heap.pop_entry().unwrap().0];
+    seen.sort_unstable();
+    assert_eq!(seen, vec![1, 3]);
+
+    let mut receiver = BinaryTreeSoftAddressableHeap::new(0.5).unwrap();
+    let mut donor = BinaryTreeSoftAddressableHeap::new(0.5).unwrap();
+    let donor_handle = donor.insert(4, 4);
+    receiver.insert(5, 5);
+    receiver.meld(&mut donor).unwrap();
+    assert_eq!(receiver.key(donor_handle), Ok(&4));
+    assert_eq!(donor.key(donor_handle), Err(InvalidHandle::ForeignHeap));
+    assert_eq!(donor.try_insert(1, 1), Err(SoftMeldError::ReceiverConsumed));
+    assert_eq!(receiver.delete(donor_handle), Ok((4, 4)));
+
+    let mut incompatible = BinaryTreeSoftAddressableHeap::new(0.01).unwrap();
+    assert_eq!(
+        receiver.meld(&mut incompatible),
+        Err(SoftMeldError::IncompatibleErrorRate)
+    );
+    let mut reverse_a =
+        BinaryTreeSoftAddressableHeap::<i32, (), Reverse>::with_comparator(0.5, reverse as Reverse)
+            .unwrap();
+    let mut reverse_b = BinaryTreeSoftAddressableHeap::<i32, (), Reverse>::with_comparator(
+        0.5,
+        reverse_again as Reverse,
+    )
+    .unwrap();
+    assert_eq!(
+        reverse_a.meld(&mut reverse_b),
+        Err(SoftMeldError::IncompatibleComparator)
+    );
+    let mut custom =
+        BinaryTreeSoftAddressableHeap::<i32, usize, Reverse>::with_comparator(0.5, reverse)
+            .unwrap();
+    for value in 0..32 {
+        custom.insert(value, value as usize);
+    }
+    for expected in (0..32).rev() {
+        assert_eq!(custom.pop_entry(), Some((expected, expected as usize)));
+    }
+
+    let mut stress = BinaryTreeSoftAddressableHeap::new(0.5).unwrap();
+    let mut random = Random(11);
+    let mut entries = Vec::new();
+    for value in 0..STRESS_SIZE as usize {
+        let key = random.next_i32();
+        entries.push(Some((key, stress.insert(key, value))));
+    }
+    for _ in 0..STRESS_SIZE {
+        let index = (random.next_i32() as u32 as usize) % entries.len();
+        if let Some((key, handle)) = entries[index] {
+            if random.next_i32() & 1 == 0 {
+                assert_eq!(stress.delete(handle), Ok((key, index)));
+                assert_eq!(stress.key(handle), Err(InvalidHandle::Stale));
+                entries[index] = None;
+            } else {
+                let (popped_key, value) = stress.pop_entry().unwrap();
+                assert_eq!(entries[value].map(|(entry, _)| entry), Some(popped_key));
+                entries[value] = None;
+            }
+        }
+    }
+    while let Some((key, value)) = stress.pop_entry() {
+        assert_eq!(entries[value].map(|(entry, _)| entry), Some(key));
+        entries[value] = None;
+    }
+    assert!(entries.iter().all(Option::is_none));
+    let stale = receiver.insert(10, 10);
+    receiver.clear();
+    assert_eq!(receiver.key(stale), Err(InvalidHandle::Stale));
+}
+
+#[test]
 fn tree_heaps_follow_common_heap_and_comparator_conformance() {
     exercise_heap(LeftistHeap::<i32>::new, false);
     exercise_heap(SkewHeap::<i32>::new, false);
@@ -288,6 +555,8 @@ fn tree_heaps_follow_common_heap_and_comparator_conformance() {
     exercise_heap(RankPairingHeap::<i32>::new, false);
     exercise_heap(CostlessMeldPairingHeap::<i32>::new, false);
     exercise_heap(StrictFibonacciHeap::<i32>::new, false);
+    exercise_heap(ReflectedFibonacciHeap::<i32>::new, false);
+    exercise_heap(ReflectedPairingHeap::<i32>::new, false);
     exercise_heap(
         || LeftistHeap::<i32, (), Reverse>::with_comparator(reverse as Reverse),
         true,
@@ -324,6 +593,14 @@ fn tree_heaps_follow_common_heap_and_comparator_conformance() {
         || StrictFibonacciHeap::<i32, (), Reverse>::with_comparator(reverse as Reverse),
         true,
     );
+    exercise_heap(
+        || ReflectedFibonacciHeap::<i32, (), Reverse>::with_comparator(reverse as Reverse),
+        true,
+    );
+    exercise_heap(
+        || ReflectedPairingHeap::<i32, (), Reverse>::with_comparator(reverse as Reverse),
+        true,
+    );
 }
 
 #[test]
@@ -338,6 +615,12 @@ fn tree_addressable_heaps_enforce_handle_rules() {
     exercise_addressable_heap(CostlessMeldPairingHeap::<i32, usize>::new, false);
     exercise_addressable_heap(StrictFibonacciHeap::<i32, usize>::new, false);
     exercise_binary_addressable_heap(BinaryTreeAddressableHeap::<i32, usize>::new, false);
+    exercise_binary_addressable_heap(
+        || DaryTreeAddressableHeap::<i32, usize>::new(4).unwrap(),
+        false,
+    );
+    exercise_addressable_heap(ReflectedFibonacciHeap::<i32, usize>::new, false);
+    exercise_addressable_heap(ReflectedPairingHeap::<i32, usize>::new, false);
     exercise_addressable_heap(
         || LeftistHeap::<i32, usize, Reverse>::with_comparator(reverse as Reverse),
         true,
@@ -378,6 +661,21 @@ fn tree_addressable_heaps_enforce_handle_rules() {
         || BinaryTreeAddressableHeap::<i32, usize, Reverse>::with_comparator(reverse as Reverse),
         true,
     );
+    exercise_binary_addressable_heap(
+        || {
+            DaryTreeAddressableHeap::<i32, usize, Reverse>::with_comparator(8, reverse as Reverse)
+                .unwrap()
+        },
+        true,
+    );
+    exercise_addressable_heap(
+        || ReflectedFibonacciHeap::<i32, usize, Reverse>::with_comparator(reverse as Reverse),
+        true,
+    );
+    exercise_addressable_heap(
+        || ReflectedPairingHeap::<i32, usize, Reverse>::with_comparator(reverse as Reverse),
+        true,
+    );
 
     exercise_addressable_random_operations(LeftistHeap::<i32, usize>::new, false);
     exercise_addressable_random_operations(SkewHeap::<i32, usize>::new, false);
@@ -413,6 +711,34 @@ fn tree_addressable_heaps_enforce_handle_rules() {
         true,
     );
     exercise_addressable_random_operations(BinaryTreeAddressableHeap::<i32, usize>::new, false);
+    exercise_addressable_random_operations(
+        || DaryTreeAddressableHeap::<i32, usize>::new(4).unwrap(),
+        false,
+    );
+    exercise_addressable_random_operations(ReflectedFibonacciHeap::<i32, usize>::new, false);
+    exercise_addressable_random_operations(ReflectedPairingHeap::<i32, usize>::new, false);
+}
+
+#[test]
+fn reflected_heaps_maintain_both_extrema_through_key_changes() {
+    exercise_double_ended_addressable_heap(ReflectedFibonacciHeap::<i32, usize>::new, false);
+    exercise_double_ended_addressable_heap(ReflectedPairingHeap::<i32, usize>::new, false);
+    exercise_double_ended_addressable_heap(
+        || ReflectedFibonacciHeap::<i32, usize, Reverse>::with_comparator(reverse as Reverse),
+        true,
+    );
+    exercise_double_ended_addressable_heap(
+        || ReflectedPairingHeap::<i32, usize, Reverse>::with_comparator(reverse as Reverse),
+        true,
+    );
+
+    let mut heap = ReflectedFibonacciHeap::<i32>::new();
+    Heap::push(&mut heap, 3);
+    Heap::push(&mut heap, 1);
+    Heap::push(&mut heap, 5);
+    assert_eq!(DoubleEndedHeap::peek_max(&heap), Some(&5));
+    assert_eq!(DoubleEndedHeap::pop_max(&mut heap), Some(5));
+    assert_eq!(Heap::pop(&mut heap), Some(1));
 }
 
 #[test]
@@ -426,6 +752,8 @@ fn tree_melds_consume_donor_and_preserve_handles() {
     exercise_meld!(RankPairingHeap);
     exercise_meld!(CostlessMeldPairingHeap);
     exercise_meld!(StrictFibonacciHeap);
+    exercise_meld!(ReflectedFibonacciHeap);
+    exercise_meld!(ReflectedPairingHeap);
 }
 
 #[test]
@@ -455,6 +783,8 @@ fn tree_meld_rejects_distinct_comparators() {
     reject_distinct_comparators!(RankPairingHeap);
     reject_distinct_comparators!(CostlessMeldPairingHeap);
     reject_distinct_comparators!(StrictFibonacciHeap);
+    reject_distinct_comparators!(ReflectedFibonacciHeap);
+    reject_distinct_comparators!(ReflectedPairingHeap);
 }
 
 #[test]
