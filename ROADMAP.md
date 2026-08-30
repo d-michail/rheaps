@@ -22,26 +22,6 @@ renames and signature changes should follow a deprecation and migration cycle.
 - Preserve the full JHeaps-derived behavioral test coverage during each
   migration.
 
-## Priority 1: Ownership and error semantics
-
-### Introduce a fallible heap abstraction
-
-Radix heaps have fallible insertion because keys can violate configured bounds
-or monotonicity. Their `Heap` and `AddressableHeap` implementations currently
-adapt this to an infallible `push` by panicking.
-
-Investigate a `TryHeap` abstraction, associated insertion errors on the common
-traits, or deliberately omitting infallible trait implementations for radix
-heaps. Valid generic operations should not unexpectedly panic because a heap
-has algorithm-specific key restrictions.
-
-Tasks:
-
-- Design fallible equivalents for value-less and addressable insertion.
-- Decide whether infallible common-trait implementations remain useful.
-- Ensure radix range and monotonicity errors retain their detail.
-- Add compile-time and runtime examples for generic fallible use.
-
 ## Medium-priority JHeaps test-port follow-up
 
 The highest-risk behavioral gaps from the JHeaps suite are covered: d-ary
@@ -95,5 +75,4 @@ Every API migration should include:
 ## Suggested sequence
 
 1. Decide the pre-1.0 compatibility policy.
-2. Design fallible heap traits and neutral shared error types.
-3. Publish a migration guide and stabilize the resulting public API.
+2. Publish a migration guide and stabilize the resulting public API.
