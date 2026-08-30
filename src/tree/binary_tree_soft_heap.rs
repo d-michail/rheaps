@@ -29,15 +29,9 @@ impl<K: Ord + Clone> BinaryTreeSoftHeap<K> {
         self.core.rank_limit()
     }
 
-    /// Inserts a key unless this heap was consumed as a meld donor.
-    pub fn try_push(&mut self, key: K) -> Result<(), SoftMeldError> {
-        self.core.insert(key, ()).map(|_| ())
-    }
-
     /// Inserts a key.
     pub fn push(&mut self, key: K) {
-        self.try_push(key)
-            .expect("a meld donor cannot accept new entries");
+        self.core.insert(key, ());
     }
 
     /// Returns the next key selected by the soft heap.
@@ -71,17 +65,11 @@ impl<K: Ord + Clone> BinaryTreeSoftHeap<K> {
 
 impl<K: Ord + Clone> BinaryTreeSoftHeap<K> {
     /// Melds `other` into this heap, consuming the donor on success.
-    pub fn meld(&mut self, other: &mut Self) -> Result<(), SoftMeldError> {
-        if !self.core.active() {
-            return Err(SoftMeldError::ReceiverConsumed);
-        }
-        if !other.core.active() {
-            return Err(SoftMeldError::DonorConsumed);
-        }
+    pub fn meld(&mut self, other: Self) -> Result<(), SoftMeldError> {
         if self.rank_limit() != other.rank_limit() {
             return Err(SoftMeldError::IncompatibleErrorRate);
         }
-        self.core.meld_from(&mut other.core);
+        self.core.meld_from(other.core);
         Ok(())
     }
 }
@@ -111,7 +99,7 @@ impl<T: Ord + Clone> Heap<T> for BinaryTreeSoftHeap<T> {
 impl<T: Ord + Clone> MeldableHeap<T> for BinaryTreeSoftHeap<T> {
     type MeldError = SoftMeldError;
 
-    fn meld(&mut self, other: &mut Self) -> Result<(), Self::MeldError> {
+    fn meld(&mut self, other: Self) -> Result<(), Self::MeldError> {
         Self::meld(self, other)
     }
 }

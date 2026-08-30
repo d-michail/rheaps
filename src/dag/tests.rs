@@ -1,11 +1,13 @@
 //! Hollow-heap conformance tests adapted from JHeaps' addressable and
 //! mergeable addressable heap test bases.
 
+use core::convert::Infallible;
+
 use crate::error::{DecreaseKeyError, InvalidHandle};
 use crate::test_support::ReverseKey;
 use crate::{AddressableHeap, Heap, MeldableAddressableHeap, MeldableHeap};
 
-use super::{HollowHeap, MeldError};
+use super::HollowHeap;
 
 const STRESS_SIZE: usize = 2_000;
 
@@ -30,9 +32,9 @@ where
     assert_eq!(heap.delete(handle), Ok((2, 2)));
 }
 
-fn assert_meldable_traits<H>(first: &mut H, second: &mut H)
+fn assert_meldable_traits<H>(first: &mut H, second: H)
 where
-    H: MeldableAddressableHeap<i32, usize, MeldError = MeldError>,
+    H: MeldableAddressableHeap<i32, usize, MeldError = Infallible>,
 {
     first.meld(second).unwrap();
 }
@@ -253,14 +255,10 @@ fn hollow_heap_melds_move_handle_domains_and_consume_donors() {
         c.insert((value * 3 + 2) as i32, value + 200);
     }
 
-    assert_meldable_traits(&mut a, &mut b);
-    assert_eq!(b.try_insert(3, 3), Err(MeldError::ReceiverConsumed));
-    assert_eq!(b.key(b_handle), Err(InvalidHandle::ForeignHeap));
+    assert_meldable_traits(&mut a, b);
     assert_eq!(a.key(b_handle), Ok(&17));
-    assert_eq!(a.meld(&mut b), Err(MeldError::DonorConsumed));
 
-    a.meld(&mut c).unwrap();
-    assert_eq!(c.key(c_handle), Err(InvalidHandle::ForeignHeap));
+    a.meld(c);
     a.decrease_key(b_handle, -1).unwrap();
     a.decrease_key(c_handle, -2).unwrap();
     assert_eq!(a.peek_entry().map(|(_, key, _)| *key), Some(-2));
@@ -281,7 +279,7 @@ fn hollow_heap_melds_move_handle_domains_and_consume_donors() {
     let mut keys_b = HollowHeap::<i32>::new();
     Heap::push(&mut keys_a, 2);
     Heap::push(&mut keys_b, 1);
-    MeldableHeap::meld(&mut keys_a, &mut keys_b).unwrap();
+    MeldableHeap::meld(&mut keys_a, keys_b).unwrap();
     assert_eq!(Heap::pop(&mut keys_a), Some(1));
     assert_eq!(Heap::pop(&mut keys_a), Some(2));
 
@@ -290,9 +288,9 @@ fn hollow_heap_melds_move_handle_domains_and_consume_donors() {
     let mut chain_c = HollowHeap::<i32, usize>::new();
     let mut chain_d = HollowHeap::<i32, usize>::new();
     let carried = chain_d.insert(29, 29);
-    chain_c.meld(&mut chain_d).unwrap();
-    chain_b.meld(&mut chain_c).unwrap();
-    chain_a.meld(&mut chain_b).unwrap();
+    chain_c.meld(chain_d);
+    chain_b.meld(chain_c);
+    chain_a.meld(chain_b);
     assert_eq!(chain_a.key(carried), Ok(&29));
     chain_a.decrease_key(carried, -3).unwrap();
     assert_eq!(chain_a.pop_entry(), Some((-3, 29)));

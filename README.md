@@ -142,10 +142,10 @@ assert_eq!(heap.pop(), Some(Reverse(4)));
 
 ### Melding heaps
 
-A meldable heap efficiently absorbs another heap of the same concrete type.
-The donor is consumed on success: it becomes empty and rejects further
-mutation, while any handles it had already issued stay valid through the
-receiver.
+A meldable heap efficiently absorbs another heap of the same concrete type by
+taking it by value. The donor is moved into the call, so reusing it afterward
+is a compile-time error; any handles it had already issued stay valid through
+the receiver.
 
 ```rust
 use rheaps::{Heap, MeldableHeap};
@@ -159,9 +159,8 @@ let mut b = PairingHeap::new();
 b.push(1);
 b.push(4);
 
-a.meld(&mut b).unwrap();
+a.meld(b); // b is moved here and can no longer be used
 assert_eq!(a.pop(), Some(1));
-assert_eq!(b.pop(), None); // b was consumed by the meld
 ```
 
 ### Double-ended heaps
@@ -283,8 +282,9 @@ The crate root defines the shared traits:
 Concrete types also provide inherent methods, so callers can use a heap
 directly without writing generic code. Addressable operations report invalid,
 foreign, and stale handles explicitly. Removing an entry or clearing a heap
-invalidates its handle. A successful meld consumes the donor heap for future
-mutation while allowing its existing handles to be used through the receiver.
+invalidates its handle. Melding takes the donor heap by value, so reusing it
+afterward is a compile-time error, while its existing handles remain usable
+through the receiver.
 
 Array-backed heaps implement `FromIterator` and `Extend`. Collecting into a
 d-ary heap uses the binary degree of two; extending an existing d-ary heap

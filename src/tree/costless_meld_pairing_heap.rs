@@ -1,9 +1,10 @@
 use core::cmp::Ordering;
+use core::convert::Infallible;
 
 use crate::error::{DecreaseKeyError, InvalidHandle};
 use crate::{AddressableHeap, DecreaseKeyHeap, MeldableAddressableHeap};
 
-use super::core::{MeldError, NodeRef, TreeCore, TreeHandle};
+use super::core::{NodeRef, TreeCore, TreeHandle};
 
 /// An addressable costless-meld pairing heap.
 ///
@@ -36,27 +37,15 @@ impl<K: Ord, V> CostlessMeldPairingHeap<K, V> {
 
     /// Inserts an entry and returns its checked handle.
     pub fn insert(&mut self, key: K, value: V) -> TreeHandle {
-        self.try_insert(key, value)
-            .expect("a meld donor cannot accept new entries")
-    }
-
-    /// Inserts an entry unless this heap was consumed as a meld donor.
-    pub fn try_insert(&mut self, key: K, value: V) -> Result<TreeHandle, MeldError> {
-        if !self.core.active {
-            return Err(MeldError::ReceiverConsumed);
-        }
         let node = self.core.insert_node(key, value);
         self.core.root = self.link(self.core.root, Some(node));
         self.core.len += 1;
-        Ok(self.core.handle(node))
+        self.core.handle(node)
     }
 
     /// Returns the handle, key, and value of a minimum entry.
     #[must_use]
     pub fn peek_entry(&self) -> Option<(TreeHandle, &K, &V)> {
-        if !self.core.active {
-            return None;
-        }
         let root = self.minimum_node()?;
         let handle = self.core.handle(root);
         let node = self.core.node(root);
@@ -65,7 +54,7 @@ impl<K: Ord, V> CostlessMeldPairingHeap<K, V> {
 
     /// Removes and returns a minimum entry.
     pub fn pop_entry(&mut self) -> Option<(K, V)> {
-        if !self.core.active || self.core.len == 0 {
+        if self.core.len == 0 {
             return None;
         }
         self.consolidate_pool();
@@ -157,11 +146,9 @@ impl<K: Ord, V> CostlessMeldPairingHeap<K, V> {
 
     /// Removes every entry and invalidates outstanding handles.
     pub fn clear(&mut self) {
-        if self.core.active {
-            self.core.clear();
-            self.decrease_pool.clear();
-            self.pool_minimum = None;
-        }
+        self.core.clear();
+        self.decrease_pool.clear();
+        self.pool_minimum = None;
     }
 
     #[cfg(test)]
@@ -293,25 +280,15 @@ impl<K: Ord> CostlessMeldPairingHeap<K, ()> {
 }
 
 impl<K: Ord, V> CostlessMeldPairingHeap<K, V> {
-    /// Melds `other` into this heap, consuming the donor on success.
-    pub fn meld(&mut self, other: &mut Self) -> Result<(), MeldError> {
-        if !self.core.active {
-            return Err(MeldError::ReceiverConsumed);
-        }
-        if !other.core.active {
-            return Err(MeldError::DonorConsumed);
-        }
+    /// Melds `other` into this heap, consuming the donor.
+    pub fn meld(&mut self, other: Self) {
         let other_root = other.core.root;
-        self.core.take_arenas_from(&mut other.core);
+        let other_len = other.core.len;
+        self.core.take_arenas_from(other.core);
         self.core.root = self.link(self.core.root, other_root);
-        self.decrease_pool.append(&mut other.decrease_pool);
-        self.core.len += other.core.len;
-        other.core.root = None;
-        other.core.len = 0;
-        other.core.active = false;
-        other.pool_minimum = None;
+        self.decrease_pool.extend(other.decrease_pool);
+        self.core.len += other_len;
         self.refresh_pool_minimum();
-        Ok(())
     }
 }
 
@@ -362,10 +339,11 @@ impl<K: Ord, V> DecreaseKeyHeap<K, V> for CostlessMeldPairingHeap<K, V> {
 }
 
 impl<K: Ord, V> MeldableAddressableHeap<K, V> for CostlessMeldPairingHeap<K, V> {
-    type MeldError = MeldError;
+    type MeldError = Infallible;
 
-    fn meld(&mut self, other: &mut Self) -> Result<(), Self::MeldError> {
-        self.meld(other)
+    fn meld(&mut self, other: Self) -> Result<(), Self::MeldError> {
+        self.meld(other);
+        Ok(())
     }
 }
 

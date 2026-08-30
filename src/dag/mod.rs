@@ -6,7 +6,6 @@
 
 mod hollow_heap;
 
-pub use crate::tree::MeldError;
 pub use hollow_heap::{HollowHandle, HollowHeap};
 
 #[cfg(test)]

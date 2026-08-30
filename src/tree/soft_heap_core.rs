@@ -103,10 +103,6 @@ impl std::error::Error for SoftHeapError {}
 /// An error returned when binary-tree soft heaps cannot be melded.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum SoftMeldError {
-    /// The receiving heap was previously used as a meld donor.
-    ReceiverConsumed,
-    /// The donor heap was previously used as a meld donor.
-    DonorConsumed,
     /// The heaps have incompatible error-rate rank limits.
     IncompatibleErrorRate,
 }
@@ -114,8 +110,6 @@ pub enum SoftMeldError {
 impl fmt::Display for SoftMeldError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            Self::ReceiverConsumed => formatter.write_str("a meld donor cannot be reused"),
-            Self::DonorConsumed => formatter.write_str("the donor heap was already consumed"),
             Self::IncompatibleErrorRate => {
                 formatter.write_str("cannot meld heaps with different error rates")
             }
@@ -231,7 +225,6 @@ pub(crate) struct SoftHeapCore<K, V> {
     node_arenas: HashMap<u64, NodeArena<K>>,
     own_domain: u64,
     len: usize,
-    active: bool,
 }
 
 impl<K: Ord + Clone, V> SoftHeapCore<K, V> {
@@ -256,7 +249,6 @@ impl<K: Ord + Clone, V> SoftHeapCore<K, V> {
             node_arenas,
             own_domain,
             len: 0,
-            active: true,
         })
     }
 
@@ -268,26 +260,16 @@ impl<K: Ord + Clone, V> SoftHeapCore<K, V> {
         self.len
     }
 
-    pub(crate) const fn active(&self) -> bool {
-        self.active
-    }
-
-    pub(crate) fn insert(&mut self, key: K, value: V) -> Result<SoftHandle, SoftMeldError> {
-        if !self.active {
-            return Err(SoftMeldError::ReceiverConsumed);
-        }
+    pub(crate) fn insert(&mut self, key: K, value: V) -> SoftHandle {
         let item = self.insert_item(key, value);
         let node = self.insert_node(item);
         self.item_mut(item).tree = Some(node);
         self.merge_roots(vec![node]);
         self.len += 1;
-        Ok(self.handle(item))
+        self.handle(item)
     }
 
     pub(crate) fn peek_item(&self) -> Option<SoftItemRef> {
-        if !self.active {
-            return None;
-        }
         let root = self.minimum_root()?;
         self.node(root).c_head
     }
@@ -299,9 +281,6 @@ impl<K: Ord + Clone, V> SoftHeapCore<K, V> {
     }
 
     pub(crate) fn pop_item(&mut self) -> Option<Item<K, V>> {
-        if !self.active {
-            return None;
-        }
         let root = self.minimum_root()?;
         let item = self.node(root).c_head.expect("root list must not be empty");
         let next = self.item(item).next;
@@ -381,9 +360,6 @@ impl<K: Ord + Clone, V> SoftHeapCore<K, V> {
     }
 
     pub(crate) fn clear(&mut self) {
-        if !self.active {
-            return;
-        }
         for arena in self.item_arenas.values_mut() {
             arena.clear();
         }
@@ -394,14 +370,11 @@ impl<K: Ord + Clone, V> SoftHeapCore<K, V> {
         self.len = 0;
     }
 
-    pub(crate) fn meld_from(&mut self, other: &mut Self) {
-        let roots = core::mem::take(&mut other.roots);
-        self.item_arenas.extend(other.item_arenas.drain());
-        self.node_arenas.extend(other.node_arenas.drain());
-        self.merge_roots(roots);
+    pub(crate) fn meld_from(&mut self, other: Self) {
+        self.item_arenas.extend(other.item_arenas);
+        self.node_arenas.extend(other.node_arenas);
+        self.merge_roots(other.roots);
         self.len += other.len;
-        other.len = 0;
-        other.active = false;
     }
 
     fn insert_item(&mut self, key: K, value: V) -> SoftItemRef {
@@ -457,9 +430,6 @@ impl<K: Ord + Clone, V> SoftHeapCore<K, V> {
     }
 
     fn validate(&self, handle: SoftHandle) -> Result<SoftItemRef, InvalidHandle> {
-        if !self.active {
-            return Err(InvalidHandle::ForeignHeap);
-        }
         let Some(arena) = self.item_arenas.get(&handle.domain) else {
             return Err(InvalidHandle::ForeignHeap);
         };

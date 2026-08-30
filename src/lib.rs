@@ -48,9 +48,9 @@
 //!   restore heap order after a decrease simply does not implement it.
 //! - **Melding.** [`MeldableHeap::meld`] and its addressable and
 //!   double-ended counterparts efficiently absorb another heap of the same
-//!   concrete type. A successful meld consumes the donor for further
-//!   mutation; handles the donor already issued stay valid through the
-//!   receiver.
+//!   concrete type by taking it by value. The donor is moved into the call,
+//!   so reusing it afterward is a compile-time error rather than a runtime
+//!   one; handles the donor already issued stay valid through the receiver.
 //! - **Fallibility.** Ordinary heaps never fail to insert. Radix heaps in
 //!   [`monotone`] are the exception: their constructors validate key bounds,
 //!   and insertion enforces monotonicity, both reported through `Result`.
@@ -231,15 +231,16 @@ pub trait DecreaseKeyHeap<K, V>: AddressableHeap<K, V> {
 /// A heap that can efficiently combine its contents with another heap of the
 /// same concrete type.
 ///
-/// A successful meld consumes `other`: it becomes empty and rejects further
-/// mutation. Handles created by `other` remain usable through `self` for
-/// addressable implementations.
+/// Melding consumes `other` by value, so a donor cannot be reused after a
+/// meld - the compiler rejects it rather than the meld failing at runtime.
+/// Handles created by `other` remain usable through `self` for addressable
+/// implementations.
 pub trait MeldableHeap<T>: Heap<T> {
     /// Error returned when a meld cannot be performed.
     type MeldError;
 
     /// Melds `other` into this heap.
-    fn meld(&mut self, other: &mut Self) -> Result<(), Self::MeldError>;
+    fn meld(&mut self, other: Self) -> Result<(), Self::MeldError>;
 }
 
 /// An addressable heap that can efficiently meld another heap.
@@ -248,7 +249,7 @@ pub trait MeldableAddressableHeap<K, V>: AddressableHeap<K, V> {
     type MeldError;
 
     /// Melds `other` into this heap.
-    fn meld(&mut self, other: &mut Self) -> Result<(), Self::MeldError>;
+    fn meld(&mut self, other: Self) -> Result<(), Self::MeldError>;
 }
 
 /// A double-ended addressable heap that can efficiently meld another heap.
@@ -257,7 +258,7 @@ pub trait MeldableDoubleEndedAddressableHeap<K, V>: DoubleEndedAddressableHeap<K
     type MeldError;
 
     /// Melds `other` into this heap.
-    fn meld(&mut self, other: &mut Self) -> Result<(), Self::MeldError>;
+    fn meld(&mut self, other: Self) -> Result<(), Self::MeldError>;
 }
 
 /// Implements [`Heap<T>`] for `$ty<T, ()>` by forwarding to its
@@ -307,7 +308,7 @@ macro_rules! impl_meldable_heap_via_addressable {
         impl<T: Ord> $crate::MeldableHeap<T> for $ty<T, ()> {
             type MeldError = <Self as $crate::MeldableAddressableHeap<T, ()>>::MeldError;
 
-            fn meld(&mut self, other: &mut Self) -> Result<(), Self::MeldError> {
+            fn meld(&mut self, other: Self) -> Result<(), Self::MeldError> {
                 $crate::MeldableAddressableHeap::meld(self, other)
             }
         }

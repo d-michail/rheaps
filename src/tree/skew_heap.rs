@@ -1,9 +1,10 @@
 use core::cmp::Ordering;
+use core::convert::Infallible;
 
 use crate::error::{DecreaseKeyError, InvalidHandle};
 use crate::{AddressableHeap, DecreaseKeyHeap, MeldableAddressableHeap};
 
-use super::core::{MeldError, NodeRef, TreeCore, TreeHandle};
+use super::core::{NodeRef, TreeCore, TreeHandle};
 
 /// An addressable skew heap.
 ///
@@ -30,31 +31,16 @@ impl<K: Ord, V> SkewHeap<K, V> {
     }
 
     /// Inserts an entry and returns its checked handle.
-    ///
-    /// Use [`Self::try_insert`] when working with a heap that may have been
-    /// consumed as a meld donor.
     pub fn insert(&mut self, key: K, value: V) -> TreeHandle {
-        self.try_insert(key, value)
-            .expect("a meld donor cannot accept new entries")
-    }
-
-    /// Inserts an entry unless this heap was consumed as a meld donor.
-    pub fn try_insert(&mut self, key: K, value: V) -> Result<TreeHandle, MeldError> {
-        if !self.core.active {
-            return Err(MeldError::ReceiverConsumed);
-        }
         let node = self.core.insert_node(key, value);
         self.core.root = self.union(self.core.root, Some(node));
         self.core.len += 1;
-        Ok(self.core.handle(node))
+        self.core.handle(node)
     }
 
     /// Returns the handle, key, and value of a minimum entry.
     #[must_use]
     pub fn peek_entry(&self) -> Option<(TreeHandle, &K, &V)> {
-        if !self.core.active {
-            return None;
-        }
         self.core.root.map(|root| {
             let handle = self.core.handle(root);
             let node = self.core.node(root);
@@ -64,9 +50,6 @@ impl<K: Ord, V> SkewHeap<K, V> {
 
     /// Removes and returns a minimum entry.
     pub fn pop_entry(&mut self) -> Option<(K, V)> {
-        if !self.core.active {
-            return None;
-        }
         let root = self.core.root?;
         let left = self.core.take_child(root, 0);
         let right = self.core.take_child(root, 1);
@@ -127,9 +110,7 @@ impl<K: Ord, V> SkewHeap<K, V> {
 
     /// Removes every entry and invalidates outstanding handles.
     pub fn clear(&mut self) {
-        if self.core.active {
-            self.core.clear();
-        }
+        self.core.clear();
     }
 
     fn detach_and_reinsert(&mut self, node: NodeRef) {
@@ -172,8 +153,7 @@ impl<K: Ord, V> SkewHeap<K, V> {
 impl<K: Ord> SkewHeap<K, ()> {
     /// Inserts a key into this value-less heap.
     pub fn push(&mut self, key: K) {
-        self.try_insert(key, ())
-            .expect("a meld donor cannot accept new entries");
+        self.insert(key, ());
     }
 
     /// Returns the minimum key, if present.
@@ -189,25 +169,13 @@ impl<K: Ord> SkewHeap<K, ()> {
 }
 
 impl<K: Ord, V> SkewHeap<K, V> {
-    /// Melds `other` into this heap.
-    ///
-    /// The donor is consumed on success. Its handles remain valid when passed
-    /// to this heap, but it cannot accept further entries.
-    pub fn meld(&mut self, other: &mut Self) -> Result<(), MeldError> {
-        if !self.core.active {
-            return Err(MeldError::ReceiverConsumed);
-        }
-        if !other.core.active {
-            return Err(MeldError::DonorConsumed);
-        }
+    /// Melds `other` into this heap, consuming the donor.
+    pub fn meld(&mut self, other: Self) {
         let other_root = other.core.root;
-        self.core.take_arenas_from(&mut other.core);
+        let other_len = other.core.len;
+        self.core.take_arenas_from(other.core);
         self.core.root = self.union(self.core.root, other_root);
-        self.core.len += other.core.len;
-        other.core.root = None;
-        other.core.len = 0;
-        other.core.active = false;
-        Ok(())
+        self.core.len += other_len;
     }
 }
 
@@ -215,8 +183,7 @@ impl<K: Ord, V> AddressableHeap<K, V> for SkewHeap<K, V> {
     type Handle = TreeHandle;
 
     fn insert(&mut self, key: K, value: V) -> Self::Handle {
-        self.try_insert(key, value)
-            .expect("a meld donor cannot accept new entries")
+        Self::insert(self, key, value)
     }
 
     fn peek(&self) -> Option<(Self::Handle, &K, &V)> {
@@ -259,10 +226,11 @@ impl<K: Ord, V> DecreaseKeyHeap<K, V> for SkewHeap<K, V> {
 }
 
 impl<K: Ord, V> MeldableAddressableHeap<K, V> for SkewHeap<K, V> {
-    type MeldError = MeldError;
+    type MeldError = Infallible;
 
-    fn meld(&mut self, other: &mut Self) -> Result<(), Self::MeldError> {
-        Self::meld(self, other)
+    fn meld(&mut self, other: Self) -> Result<(), Self::MeldError> {
+        Self::meld(self, other);
+        Ok(())
     }
 }
 

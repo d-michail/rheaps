@@ -30,15 +30,9 @@ impl<K: Ord + Clone, V> BinaryTreeSoftAddressableHeap<K, V> {
         self.core.rank_limit()
     }
 
-    /// Inserts an entry unless this heap was consumed as a meld donor.
-    pub fn try_insert(&mut self, key: K, value: V) -> Result<SoftHandle, SoftMeldError> {
-        self.core.insert(key, value)
-    }
-
     /// Inserts an entry and returns a checked handle.
     pub fn insert(&mut self, key: K, value: V) -> SoftHandle {
-        self.try_insert(key, value)
-            .expect("a meld donor cannot accept new entries")
+        self.core.insert(key, value)
     }
 
     /// Returns the handle, key, and value selected by the soft heap.
@@ -92,17 +86,11 @@ impl<K: Ord + Clone, V> BinaryTreeSoftAddressableHeap<K, V> {
 
 impl<K: Ord + Clone, V> BinaryTreeSoftAddressableHeap<K, V> {
     /// Melds `other` into this heap, consuming the donor on success.
-    pub fn meld(&mut self, other: &mut Self) -> Result<(), SoftMeldError> {
-        if !self.core.active() {
-            return Err(SoftMeldError::ReceiverConsumed);
-        }
-        if !other.core.active() {
-            return Err(SoftMeldError::DonorConsumed);
-        }
+    pub fn meld(&mut self, other: Self) -> Result<(), SoftMeldError> {
         if self.rank_limit() != other.rank_limit() {
             return Err(SoftMeldError::IncompatibleErrorRate);
         }
-        self.core.meld_from(&mut other.core);
+        self.core.meld_from(other.core);
         Ok(())
     }
 }
@@ -150,7 +138,7 @@ impl<K: Ord + Clone, V> AddressableHeap<K, V> for BinaryTreeSoftAddressableHeap<
 impl<K: Ord + Clone, V> MeldableAddressableHeap<K, V> for BinaryTreeSoftAddressableHeap<K, V> {
     type MeldError = SoftMeldError;
 
-    fn meld(&mut self, other: &mut Self) -> Result<(), Self::MeldError> {
+    fn meld(&mut self, other: Self) -> Result<(), Self::MeldError> {
         Self::meld(self, other)
     }
 }
@@ -198,7 +186,7 @@ impl<T: Ord + Clone> Heap<T> for BinaryTreeSoftAddressableHeap<T, ()> {
 impl<T: Ord + Clone> MeldableHeap<T> for BinaryTreeSoftAddressableHeap<T, ()> {
     type MeldError = SoftMeldError;
 
-    fn meld(&mut self, other: &mut Self) -> Result<(), Self::MeldError> {
+    fn meld(&mut self, other: Self) -> Result<(), Self::MeldError> {
         Self::meld(self, other)
     }
 }

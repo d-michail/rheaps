@@ -1,4 +1,5 @@
 use core::cmp::Reverse;
+use core::convert::Infallible;
 use core::marker::PhantomData;
 use std::collections::HashMap;
 
@@ -8,7 +9,7 @@ use crate::{
     MeldableDoubleEndedAddressableHeap,
 };
 
-use super::core::{MeldError, TreeHandle, next_domain_id};
+use super::core::{TreeHandle, next_domain_id};
 use super::{FibonacciHeap, PairingHeap};
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -148,7 +149,6 @@ where
     max_heap: B::Max,
     free: Option<ReflectedHandle>,
     len: usize,
-    active: bool,
     own_domain: u64,
     arenas: HashMap<u64, OuterArena<K, V>>,
     backend: PhantomData<B>,
@@ -170,18 +170,14 @@ where
             max_heap,
             free: None,
             len: 0,
-            active: true,
             own_domain,
             arenas,
             backend: PhantomData,
         }
     }
 
-    /// Inserts an entry unless this heap was consumed as a meld donor.
-    pub fn try_insert(&mut self, key: K, value: V) -> Result<ReflectedHandle, MeldError> {
-        if !self.active {
-            return Err(MeldError::ReceiverConsumed);
-        }
+    /// Inserts an entry and returns a checked handle.
+    pub fn insert(&mut self, key: K, value: V) -> ReflectedHandle {
         let handle = self.insert_outer(key, value);
         if let Some(free) = self.free.take() {
             self.insert_pair(handle, free);
@@ -189,13 +185,7 @@ where
             self.free = Some(handle);
         }
         self.len += 1;
-        Ok(handle)
-    }
-
-    /// Inserts an entry and returns a checked handle.
-    pub fn insert(&mut self, key: K, value: V) -> ReflectedHandle {
-        self.try_insert(key, value)
-            .expect("a meld donor cannot accept new entries")
+        handle
     }
 
     /// Returns the handle, key, and value of a minimum entry.
@@ -368,9 +358,6 @@ where
 
     /// Removes all entries and invalidates every outstanding handle.
     pub fn clear(&mut self) {
-        if !self.active {
-            return;
-        }
         self.min_heap.clear();
         self.max_heap.clear();
         for arena in self.arenas.values_mut() {
@@ -398,9 +385,6 @@ where
     }
 
     fn validate(&self, handle: ReflectedHandle) -> Result<ReflectedHandle, InvalidHandle> {
-        if !self.active {
-            return Err(InvalidHandle::ForeignHeap);
-        }
         let Some(arena) = self.arenas.get(&handle.domain) else {
             return Err(InvalidHandle::ForeignHeap);
         };
@@ -583,29 +567,25 @@ where
 impl<K: Ord, V, B> ReflectedHeap<K, V, B>
 where
     B: ReflectedHeapBackend<K>,
-    B::Min: MeldableAddressableHeap<K, InnerRecord, Handle = TreeHandle, MeldError = MeldError>,
-    B::Max: MeldableAddressableHeap<Reverse<K>, InnerRecord, Handle = TreeHandle, MeldError = MeldError>,
+    B::Min: MeldableAddressableHeap<K, InnerRecord, Handle = TreeHandle, MeldError = Infallible>,
+    B::Max: MeldableAddressableHeap<
+            Reverse<K>,
+            InnerRecord,
+            Handle = TreeHandle,
+            MeldError = Infallible,
+        >,
 {
-    /// Melds `other` into this heap, consuming the donor on success.
-    pub fn meld(&mut self, other: &mut Self) -> Result<(), MeldError> {
-        if !self.active {
-            return Err(MeldError::ReceiverConsumed);
-        }
-        if !other.active {
-            return Err(MeldError::DonorConsumed);
-        }
-        self.min_heap.meld(&mut other.min_heap)?;
-        self.max_heap.meld(&mut other.max_heap)?;
-        self.arenas.extend(other.arenas.drain());
-        match (self.free.take(), other.free.take()) {
+    /// Melds `other` into this heap, consuming the donor.
+    pub fn meld(&mut self, other: Self) {
+        self.min_heap.meld(other.min_heap).unwrap();
+        self.max_heap.meld(other.max_heap).unwrap();
+        self.arenas.extend(other.arenas);
+        match (self.free.take(), other.free) {
             (Some(first), Some(second)) => self.insert_pair(first, second),
             (Some(free), None) | (None, Some(free)) => self.free = Some(free),
             (None, None) => {}
         }
         self.len += other.len;
-        other.len = 0;
-        other.active = false;
-        Ok(())
     }
 }
 
@@ -665,11 +645,6 @@ macro_rules! define_reflected_heap {
                 Self {
                     inner: ReflectedHeap::new(),
                 }
-            }
-
-            /// Inserts an entry unless this heap was consumed as a meld donor.
-            pub fn try_insert(&mut self, key: K, value: V) -> Result<ReflectedHandle, MeldError> {
-                self.inner.try_insert(key, value)
             }
 
             /// Inserts an entry and returns a checked handle.
@@ -754,9 +729,9 @@ macro_rules! define_reflected_heap {
                 self.inner.clear();
             }
 
-            /// Melds `other` into this heap, consuming the donor on success.
-            pub fn meld(&mut self, other: &mut Self) -> Result<(), MeldError> {
-                self.inner.meld(&mut other.inner)
+            /// Melds `other` into this heap, consuming the donor.
+            pub fn meld(&mut self, other: Self) {
+                self.inner.meld(other.inner);
             }
         }
 
@@ -864,18 +839,20 @@ macro_rules! define_reflected_heap {
         }
 
         impl<K: Ord, V> MeldableAddressableHeap<K, V> for $name<K, V> {
-            type MeldError = MeldError;
+            type MeldError = Infallible;
 
-            fn meld(&mut self, other: &mut Self) -> Result<(), Self::MeldError> {
-                Self::meld(self, other)
+            fn meld(&mut self, other: Self) -> Result<(), Self::MeldError> {
+                Self::meld(self, other);
+                Ok(())
             }
         }
 
         impl<K: Ord, V> MeldableDoubleEndedAddressableHeap<K, V> for $name<K, V> {
-            type MeldError = MeldError;
+            type MeldError = Infallible;
 
-            fn meld(&mut self, other: &mut Self) -> Result<(), Self::MeldError> {
-                Self::meld(self, other)
+            fn meld(&mut self, other: Self) -> Result<(), Self::MeldError> {
+                Self::meld(self, other);
+                Ok(())
             }
         }
 

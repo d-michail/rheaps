@@ -1,5 +1,4 @@
 use core::cmp::Ordering;
-use core::fmt;
 use core::sync::atomic::{AtomicU64, Ordering as AtomicOrdering};
 use std::collections::HashMap;
 #[cfg(test)]
@@ -16,25 +15,6 @@ pub struct TreeHandle {
     pub(crate) slot: usize,
     pub(crate) generation: u64,
 }
-
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum MeldError {
-    /// The receiving heap was previously used as a meld donor.
-    ReceiverConsumed,
-    /// The donor heap was previously used as a meld donor.
-    DonorConsumed,
-}
-
-impl fmt::Display for MeldError {
-    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::ReceiverConsumed => formatter.write_str("a meld donor cannot be reused"),
-            Self::DonorConsumed => formatter.write_str("the donor heap was already consumed"),
-        }
-    }
-}
-
-impl std::error::Error for MeldError {}
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
 pub(crate) struct NodeRef {
@@ -111,7 +91,6 @@ impl<K, V> Arena<K, V> {
 pub(crate) struct TreeCore<K, V> {
     pub(crate) root: Option<NodeRef>,
     pub(crate) len: usize,
-    pub(crate) active: bool,
     own_domain: u64,
     arenas: HashMap<u64, Arena<K, V>>,
 }
@@ -124,7 +103,6 @@ impl<K: Ord, V> TreeCore<K, V> {
         Self {
             root: None,
             len: 0,
-            active: true,
             own_domain,
             arenas,
         }
@@ -163,9 +141,6 @@ impl<K: Ord, V> TreeCore<K, V> {
     }
 
     pub(crate) fn validate(&self, handle: TreeHandle) -> Result<NodeRef, InvalidHandle> {
-        if !self.active {
-            return Err(InvalidHandle::ForeignHeap);
-        }
         let Some(arena) = self.arenas.get(&handle.domain) else {
             return Err(InvalidHandle::ForeignHeap);
         };
@@ -314,16 +289,12 @@ impl<K: Ord, V> TreeCore<K, V> {
         self.len = 0;
     }
 
-    pub(crate) fn take_arenas_from(&mut self, other: &mut Self) {
-        self.arenas.extend(other.arenas.drain());
+    pub(crate) fn take_arenas_from(&mut self, other: Self) {
+        self.arenas.extend(other.arenas);
     }
 
     #[cfg(test)]
     pub(crate) fn assert_heap_forest(&self, roots: impl IntoIterator<Item = NodeRef>) {
-        if !self.active {
-            return;
-        }
-
         let roots = roots.into_iter().collect::<Vec<_>>();
         let mut visited = HashSet::new();
         let mut stack = roots

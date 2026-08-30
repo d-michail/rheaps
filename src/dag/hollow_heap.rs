@@ -1,9 +1,9 @@
 use core::cmp::Ordering;
+use core::convert::Infallible;
 use core::sync::atomic::{AtomicU64, Ordering as AtomicOrdering};
 use std::collections::HashMap;
 
 use crate::error::{DecreaseKeyError, InvalidHandle};
-use crate::tree::MeldError;
 use crate::{AddressableHeap, DecreaseKeyHeap, MeldableAddressableHeap};
 
 static NEXT_DOMAIN_ID: AtomicU64 = AtomicU64::new(1);
@@ -156,7 +156,6 @@ pub struct HollowHeap<K, V = ()> {
     root: Option<NodeRef>,
     len: usize,
     nodes: usize,
-    active: bool,
     own_domain: u64,
     arenas: HashMap<u64, DomainArena<K, V>>,
 }
@@ -172,7 +171,6 @@ impl<K: Ord, V> HollowHeap<K, V> {
             root: None,
             len: 0,
             nodes: 0,
-            active: true,
             own_domain,
             arenas,
         }
@@ -187,22 +185,7 @@ impl<K: Ord, V> Default for HollowHeap<K, V> {
 
 impl<K: Ord, V> HollowHeap<K, V> {
     /// Inserts an entry and returns its checked handle.
-    ///
-    /// # Panics
-    ///
-    /// Panics when this heap was consumed as a meld donor. Use
-    /// [`Self::try_insert`] to handle that condition explicitly.
     pub fn insert(&mut self, key: K, value: V) -> HollowHandle {
-        self.try_insert(key, value)
-            .expect("a meld donor cannot accept new entries")
-    }
-
-    /// Inserts an entry unless this heap was consumed as a meld donor.
-    pub fn try_insert(&mut self, key: K, value: V) -> Result<HollowHandle, MeldError> {
-        if !self.active {
-            return Err(MeldError::ReceiverConsumed);
-        }
-
         let item = self.insert_item(key, value);
         let node = self.insert_node(Node {
             item: Some(item),
@@ -214,15 +197,12 @@ impl<K: Ord, V> HollowHeap<K, V> {
         self.item_mut(item).node = node;
         self.root = self.link_options(self.root, Some(node));
         self.len += 1;
-        Ok(self.handle(item))
+        self.handle(item)
     }
 
     /// Returns the handle, key, and value of a minimum entry.
     #[must_use]
     pub fn peek_entry(&self) -> Option<(HollowHandle, &K, &V)> {
-        if !self.active {
-            return None;
-        }
         let item = self.root.and_then(|root| self.node(root).item)?;
         let item_entry = self.item(item);
         Some((self.handle(item), &item_entry.key, &item_entry.value))
@@ -230,9 +210,6 @@ impl<K: Ord, V> HollowHeap<K, V> {
 
     /// Removes and returns a minimum key-value pair.
     pub fn pop_entry(&mut self) -> Option<(K, V)> {
-        if !self.active {
-            return None;
-        }
         let root = self.root?;
         let item = self
             .node(root)
@@ -320,9 +297,6 @@ impl<K: Ord, V> HollowHeap<K, V> {
 
     /// Removes every entry, invalidates every handle, and reclaims all nodes.
     pub fn clear(&mut self) {
-        if !self.active {
-            return;
-        }
         for arena in self.arenas.values_mut() {
             arena.clear();
         }
@@ -377,9 +351,6 @@ impl<K: Ord, V> HollowHeap<K, V> {
     }
 
     fn validate(&self, handle: HollowHandle) -> Result<ItemRef, InvalidHandle> {
-        if !self.active {
-            return Err(InvalidHandle::ForeignHeap);
-        }
         let Some(arena) = self.arenas.get(&handle.domain) else {
             return Err(InvalidHandle::ForeignHeap);
         };
@@ -552,9 +523,6 @@ impl<K: Ord, V> HollowHeap<K, V> {
 
     #[cfg(test)]
     pub(crate) fn assert_invariants(&self) {
-        if !self.active {
-            return;
-        }
         assert_eq!(
             self.nodes,
             self.arenas
@@ -607,10 +575,6 @@ impl<K: Ord, V> HollowHeap<K, V> {
 
 impl<K: Ord> HollowHeap<K, ()> {
     /// Inserts a key into this value-less heap.
-    ///
-    /// # Panics
-    ///
-    /// Panics when this heap was consumed as a meld donor.
     pub fn push(&mut self, key: K) {
         self.insert(key, ());
     }
@@ -628,28 +592,16 @@ impl<K: Ord> HollowHeap<K, ()> {
 }
 
 impl<K: Ord, V> HollowHeap<K, V> {
-    /// Melds `other` into this heap, consuming the donor on success.
+    /// Melds `other` into this heap, consuming the donor.
     ///
     /// All donor handles become valid handles of this heap without moving
-    /// their entries. The donor can no longer be queried or mutated.
-    pub fn meld(&mut self, other: &mut Self) -> Result<(), MeldError> {
-        if !self.active {
-            return Err(MeldError::ReceiverConsumed);
-        }
-        if !other.active {
-            return Err(MeldError::DonorConsumed);
-        }
+    /// their entries.
+    pub fn meld(&mut self, other: Self) {
         let other_root = other.root;
-        self.arenas.extend(other.arenas.drain());
+        self.arenas.extend(other.arenas);
         self.root = self.link_options(self.root, other_root);
         self.len += other.len;
         self.nodes += other.nodes;
-
-        other.root = None;
-        other.len = 0;
-        other.nodes = 0;
-        other.active = false;
-        Ok(())
     }
 }
 
@@ -700,10 +652,11 @@ impl<K: Ord, V> DecreaseKeyHeap<K, V> for HollowHeap<K, V> {
 }
 
 impl<K: Ord, V> MeldableAddressableHeap<K, V> for HollowHeap<K, V> {
-    type MeldError = MeldError;
+    type MeldError = Infallible;
 
-    fn meld(&mut self, other: &mut Self) -> Result<(), Self::MeldError> {
-        Self::meld(self, other)
+    fn meld(&mut self, other: Self) -> Result<(), Self::MeldError> {
+        Self::meld(self, other);
+        Ok(())
     }
 }
 

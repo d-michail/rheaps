@@ -9,8 +9,8 @@ use crate::{AddressableHeap, DecreaseKeyHeap, DoubleEndedAddressableHeap, Double
 
 use super::{
     BinaryTreeAddressableHeap, BinaryTreeSoftAddressableHeap, BinaryTreeSoftHeap,
-    CostlessMeldPairingHeap, DaryTreeAddressableHeap, FibonacciHeap, LeftistHeap, MeldError,
-    PairingHeap, PurePairingHeap, RankPairingHeap, ReflectedFibonacciHeap, ReflectedPairingHeap,
+    CostlessMeldPairingHeap, DaryTreeAddressableHeap, FibonacciHeap, LeftistHeap, PairingHeap,
+    PurePairingHeap, RankPairingHeap, ReflectedFibonacciHeap, ReflectedPairingHeap,
     SimpleFibonacciHeap, SkewHeap, SoftHeapError, SoftMeldError, StrictFibonacciHeap, TreeHandle,
 };
 
@@ -433,8 +433,8 @@ fn exercise_strict_fibonacci_random_operations(operation_count: usize, seed: u64
             let first_index = random.next_i32() as u32 as usize % heaps.len();
             let mut first = heaps.swap_remove(first_index);
             let second_index = random.next_i32() as u32 as usize % heaps.len();
-            let mut second = heaps.swap_remove(second_index);
-            first.heap.meld(&mut second.heap).unwrap();
+            let second = heaps.swap_remove(second_index);
+            first.heap.meld(second.heap);
             first.live.extend(second.live);
             first.assert_valid();
             heaps.push(first);
@@ -566,11 +566,7 @@ macro_rules! exercise_meld {
         for value in 0..100 {
             second.insert(value * 2 + 1, value as usize);
         }
-        first.meld(&mut second).unwrap();
-        assert!(second.is_empty());
-        assert_eq!(second.try_insert(3, 3), Err(MeldError::ReceiverConsumed));
-        assert_eq!(second.key(donor_handle), Err(InvalidHandle::ForeignHeap));
-        assert_eq!(first.meld(&mut second), Err(MeldError::DonorConsumed));
+        first.meld(second);
         first.decrease_key(donor_handle, -1).unwrap();
         assert_eq!(first.peek().map(|(_, key, _)| *key), Some(-1));
         assert_eq!(first.delete(donor_handle), Ok((-1, 201)));
@@ -585,14 +581,14 @@ macro_rules! exercise_meld {
         let mut b = $heap::<i32, usize>::new();
         let mut c = $heap::<i32, usize>::new();
         let handle = c.insert(10, 10);
-        b.meld(&mut c).unwrap();
-        a.meld(&mut b).unwrap();
+        b.meld(c);
+        a.meld(b);
         a.decrease_key(handle, 0).unwrap();
         assert_eq!(a.peek().map(|(_, key, _)| *key), Some(0));
 
         let mut empty_receiver = $heap::<i32, usize>::new();
-        let mut empty_donor = $heap::<i32, usize>::new();
-        empty_receiver.meld(&mut empty_donor).unwrap();
+        let empty_donor = $heap::<i32, usize>::new();
+        empty_receiver.meld(empty_donor);
         assert!(empty_receiver.is_empty());
 
         for (receiver_len, donor_len) in [(100, 100), (101, 101), (101, 100)] {
@@ -604,7 +600,7 @@ macro_rules! exercise_meld {
             for value in 0..donor_len {
                 donor.insert(value * 2 + 1, value as usize);
             }
-            receiver.meld(&mut donor).unwrap();
+            receiver.meld(donor);
             let mut previous = None;
             let mut count = 0;
             while let Some((key, _)) = receiver.pop() {
@@ -620,7 +616,7 @@ macro_rules! exercise_meld {
         let mut reusable = $heap::<i32, usize>::new();
         let mut reusable_donor = $heap::<i32, usize>::new();
         reusable_donor.insert(1, 1);
-        reusable.meld(&mut reusable_donor).unwrap();
+        reusable.meld(reusable_donor);
         reusable.insert(0, 0);
         assert_eq!(reusable.pop(), Some((0, 0)));
         reusable.clear();
@@ -670,10 +666,9 @@ fn soft_heaps_validate_error_rates_and_preserve_every_key() {
     let mut donor = BinaryTreeSoftHeap::new(0.5).unwrap();
     receiver.push(2);
     donor.push(1);
-    receiver.meld(&mut donor).unwrap();
+    receiver.meld(donor).unwrap();
     assert_eq!(receiver.pop(), Some(1));
     assert_eq!(receiver.pop(), Some(2));
-    assert_eq!(donor.try_push(3), Err(SoftMeldError::ReceiverConsumed));
 
     let mut alternate = BinaryTreeSoftHeap::new(0.5).unwrap();
     for key in 0..32 {
@@ -706,9 +701,8 @@ fn soft_heaps_validate_error_rates_and_preserve_every_key() {
         for key in STRESS_SIZE / 3..STRESS_SIZE {
             large.push(key);
         }
-        small.meld(&mut large).unwrap();
+        small.meld(large).unwrap();
         assert_eq!(small.len(), STRESS_SIZE as usize);
-        assert!(large.is_empty());
         let mut melded = Vec::new();
         while let Some(key) = small.pop() {
             melded.push(key);
@@ -739,19 +733,13 @@ fn soft_addressable_heaps_enforce_handles_and_meld_rules() {
     let mut donor = BinaryTreeSoftAddressableHeap::new(0.5).unwrap();
     let donor_handle = donor.insert(4, 4);
     receiver.insert(5, 5);
-    receiver.meld(&mut donor).unwrap();
+    receiver.meld(donor).unwrap();
     assert_eq!(receiver.key(donor_handle), Ok(&4));
-    assert_eq!(donor.key(donor_handle), Err(InvalidHandle::ForeignHeap));
-    assert_eq!(
-        donor.value_mut(donor_handle),
-        Err(InvalidHandle::ForeignHeap)
-    );
-    assert_eq!(donor.try_insert(1, 1), Err(SoftMeldError::ReceiverConsumed));
     assert_eq!(receiver.delete(donor_handle), Ok((4, 4)));
 
-    let mut incompatible = BinaryTreeSoftAddressableHeap::new(0.01).unwrap();
+    let incompatible = BinaryTreeSoftAddressableHeap::new(0.01).unwrap();
     assert_eq!(
-        receiver.meld(&mut incompatible),
+        receiver.meld(incompatible),
         Err(SoftMeldError::IncompatibleErrorRate)
     );
     let mut stress = BinaryTreeSoftAddressableHeap::new(0.5).unwrap();
@@ -832,10 +820,10 @@ fn soft_addressable_heaps_enforce_handles_and_meld_rules() {
     let d_handle = d.insert(24, 24);
     let e_handle = e.insert(28, 28);
     e.insert(29, 29);
-    d.meld(&mut e).unwrap();
-    c.meld(&mut d).unwrap();
-    b.meld(&mut c).unwrap();
-    a.meld(&mut b).unwrap();
+    d.meld(e).unwrap();
+    c.meld(d).unwrap();
+    b.meld(c).unwrap();
+    a.meld(b).unwrap();
     for (handle, key) in [
         (a_handle, 12),
         (b_handle, 16),
@@ -1085,7 +1073,7 @@ fn advanced_tree_heaps_maintain_node_forest_invariants() {
 
             let mut donor = $heap::<i32, usize>::new();
             let donor_handle = donor.insert(-2_000, 999);
-            heap.meld(&mut donor).unwrap();
+            heap.meld(donor);
             heap.assert_invariants();
             heap.decrease_key(donor_handle, -3_000).unwrap();
             heap.assert_invariants();
