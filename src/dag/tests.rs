@@ -1,7 +1,7 @@
 //! Hollow-heap conformance tests adapted from JHeaps' addressable and
 //! mergeable addressable heap test bases.
 
-use crate::array::{DecreaseKeyError, InvalidHandle};
+use crate::error::{DecreaseKeyError, InvalidHandle};
 use crate::test_support::ReverseKey;
 use crate::{AddressableHeap, Heap, MeldableAddressableHeap, MeldableHeap};
 

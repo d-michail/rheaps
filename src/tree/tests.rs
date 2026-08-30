@@ -3,9 +3,9 @@
 use core::cmp::Ordering;
 use std::collections::HashMap;
 
-use crate::array::{DecreaseKeyError, IncreaseKeyError, InvalidHandle};
+use crate::error::{DecreaseKeyError, IncreaseKeyError, InvalidHandle};
 use crate::test_support::ReverseKey;
-use crate::{AddressableHeap, DoubleEndedAddressableHeap, DoubleEndedHeap, Heap};
+use crate::{AddressableHeap, DecreaseKeyHeap, DoubleEndedAddressableHeap, DoubleEndedHeap, Heap};
 
 use super::{
     BinaryTreeAddressableHeap, BinaryTreeSoftAddressableHeap, BinaryTreeSoftHeap,
@@ -88,7 +88,7 @@ where
 
 fn exercise_reverse_tree_addressable_heap<H>(make: impl Fn() -> H)
 where
-    H: AddressableHeap<ReverseKey, usize>,
+    H: AddressableHeap<ReverseKey, usize> + DecreaseKeyHeap<ReverseKey, usize>,
     H::Handle: Copy + Eq,
 {
     let mut heap = make();
@@ -113,7 +113,7 @@ where
 
 fn exercise_reverse_addressable_random_operations<H>(make: impl Fn() -> H)
 where
-    H: AddressableHeap<ReverseKey, usize>,
+    H: AddressableHeap<ReverseKey, usize> + DecreaseKeyHeap<ReverseKey, usize>,
     H::Handle: Copy + Eq,
 {
     let mut heap = make();
@@ -162,7 +162,9 @@ where
 
 fn exercise_reverse_double_ended_addressable_heap<H>(make: impl Fn() -> H)
 where
-    H: AddressableHeap<ReverseKey, usize> + DoubleEndedAddressableHeap<ReverseKey, usize>,
+    H: AddressableHeap<ReverseKey, usize>
+        + DoubleEndedAddressableHeap<ReverseKey, usize>
+        + DecreaseKeyHeap<ReverseKey, usize>,
     H::Handle: Copy + Eq,
 {
     let mut heap = make();
@@ -240,7 +242,7 @@ where
 
 fn exercise_addressable_heap<H>(make: impl Fn() -> H)
 where
-    H: AddressableHeap<i32, usize>,
+    H: AddressableHeap<i32, usize> + DecreaseKeyHeap<i32, usize>,
     H::Handle: Copy + Eq,
 {
     let mut heap = make();
@@ -299,7 +301,7 @@ where
 
 fn exercise_addressable_random_operations<H>(make: impl Fn() -> H)
 where
-    H: AddressableHeap<i32, usize>,
+    H: AddressableHeap<i32, usize> + DecreaseKeyHeap<i32, usize>,
     H::Handle: Copy + Eq,
 {
     let mut heap = make();
@@ -353,7 +355,7 @@ where
 
 fn exercise_binary_addressable_heap<H>(make: impl Fn() -> H + Copy)
 where
-    H: AddressableHeap<i32, usize>,
+    H: AddressableHeap<i32, usize> + DecreaseKeyHeap<i32, usize>,
     H::Handle: Copy + Eq,
 {
     exercise_addressable_heap(make);
@@ -467,7 +469,9 @@ fn exercise_strict_fibonacci_random_operations(operation_count: usize, seed: u64
 
 fn exercise_double_ended_addressable_heap<H>(make: impl Fn() -> H)
 where
-    H: AddressableHeap<i32, usize> + DoubleEndedAddressableHeap<i32, usize>,
+    H: AddressableHeap<i32, usize>
+        + DoubleEndedAddressableHeap<i32, usize>
+        + DecreaseKeyHeap<i32, usize>,
     H::Handle: Copy + Eq,
 {
     let mut heap = make();
@@ -722,10 +726,8 @@ fn soft_addressable_heaps_enforce_handles_and_meld_rules() {
     let third = heap.insert(2, 2);
     *heap.value_mut(second).unwrap() = 10;
     assert_eq!(heap.value(second), Ok(&10));
-    assert_eq!(
-        heap.decrease_key(second, 0),
-        Err(DecreaseKeyError::Unsupported)
-    );
+    // `BinaryTreeSoftAddressableHeap` does not implement `DecreaseKeyHeap`;
+    // key decreases are rejected at compile time rather than at run time.
     assert_eq!(heap.delete(third), Ok((2, 2)));
     assert_eq!(heap.key(third), Err(InvalidHandle::Stale));
     assert_eq!(heap.value_mut(third), Err(InvalidHandle::Stale));

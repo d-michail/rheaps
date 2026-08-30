@@ -7,7 +7,7 @@ use super::{
     FiniteF64, RadixDecreaseKeyError, RadixHandle, RadixHeapError, U32RadixAddressableHeap,
     U32RadixHeap, U64RadixAddressableHeap, U64RadixHeap,
 };
-use crate::array::InvalidHandle;
+use crate::error::InvalidHandle;
 use crate::{AddressableHeap, Heap};
 
 const RANDOM_VALUES: usize = 4_000;

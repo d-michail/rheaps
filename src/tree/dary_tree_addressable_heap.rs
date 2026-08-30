@@ -1,8 +1,8 @@
 use core::cmp::Ordering;
 use core::fmt;
 
-use crate::AddressableHeap;
-use crate::array::{DecreaseKeyError, InvalidHandle};
+use crate::error::{DecreaseKeyError, InvalidHandle};
+use crate::{AddressableHeap, DecreaseKeyHeap};
 
 use super::core::{TreeHandle, next_domain_id};
 
@@ -352,10 +352,6 @@ impl<K: Ord, V> AddressableHeap<K, V> for DaryTreeAddressableHeap<K, V> {
         Self::value_mut(self, handle)
     }
 
-    fn decrease_key(&mut self, handle: Self::Handle, key: K) -> Result<(), DecreaseKeyError> {
-        Self::decrease_key(self, handle, key)
-    }
-
     fn delete(&mut self, handle: Self::Handle) -> Result<(K, V), InvalidHandle> {
         Self::delete(self, handle)
     }
@@ -366,6 +362,12 @@ impl<K: Ord, V> AddressableHeap<K, V> for DaryTreeAddressableHeap<K, V> {
 
     fn clear(&mut self) {
         Self::clear(self);
+    }
+}
+
+impl<K: Ord, V> DecreaseKeyHeap<K, V> for DaryTreeAddressableHeap<K, V> {
+    fn decrease_key(&mut self, handle: Self::Handle, key: K) -> Result<(), DecreaseKeyError> {
+        Self::decrease_key(self, handle, key)
     }
 }
 

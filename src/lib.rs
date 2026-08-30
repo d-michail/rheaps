@@ -43,7 +43,9 @@
 //! - **Handles.** [`AddressableHeap::insert`] returns an opaque, `Copy`
 //!   handle used to inspect, update, or delete that entry later. A handle is
 //!   rejected once its entry is removed, its heap is cleared, or it is
-//!   presented to a different heap instance.
+//!   presented to a different heap instance. Key decreases are a separate
+//!   capability, [`DecreaseKeyHeap`]: a handle-based heap that cannot
+//!   restore heap order after a decrease simply does not implement it.
 //! - **Melding.** [`MeldableHeap::meld`] and its addressable and
 //!   double-ended counterparts efficiently absorb another heap of the same
 //!   concrete type. A successful meld consumes the donor for further
@@ -62,8 +64,11 @@
 
 pub mod array;
 pub mod dag;
+pub mod error;
 pub mod monotone;
 pub mod tree;
+
+pub use error::{DecreaseKeyError, IncreaseKeyError, InvalidHandle};
 
 /// The common interface implemented by min-oriented heaps.
 pub trait Heap<T> {
@@ -141,7 +146,7 @@ pub trait DoubleEndedAddressableHeap<K, V>: AddressableHeap<K, V> {
     /// Returns an error for an invalid handle or a key with higher priority
     /// than the current one.
     fn increase_key(&mut self, handle: Self::Handle, key: K)
-    -> Result<(), array::IncreaseKeyError>;
+    -> Result<(), error::IncreaseKeyError>;
 }
 
 /// A min-oriented heap whose entries are addressed by stable handles.
@@ -168,37 +173,28 @@ pub trait AddressableHeap<K, V> {
     /// # Errors
     ///
     /// Returns an error if `handle` is stale or belongs to another heap.
-    fn key(&self, handle: Self::Handle) -> Result<&K, array::InvalidHandle>;
+    fn key(&self, handle: Self::Handle) -> Result<&K, error::InvalidHandle>;
 
     /// Returns the value identified by `handle`.
     ///
     /// # Errors
     ///
     /// Returns an error if `handle` is stale or belongs to another heap.
-    fn value(&self, handle: Self::Handle) -> Result<&V, array::InvalidHandle>;
+    fn value(&self, handle: Self::Handle) -> Result<&V, error::InvalidHandle>;
 
     /// Returns mutable access to the value identified by `handle`.
     ///
     /// # Errors
     ///
     /// Returns an error if `handle` is stale or belongs to another heap.
-    fn value_mut(&mut self, handle: Self::Handle) -> Result<&mut V, array::InvalidHandle>;
-
-    /// Decreases the key identified by `handle`.
-    ///
-    /// # Errors
-    ///
-    /// Returns an error for an invalid handle or a key with lower priority
-    /// than the current one.
-    fn decrease_key(&mut self, handle: Self::Handle, key: K)
-    -> Result<(), array::DecreaseKeyError>;
+    fn value_mut(&mut self, handle: Self::Handle) -> Result<&mut V, error::InvalidHandle>;
 
     /// Removes and returns the entry identified by `handle`.
     ///
     /// # Errors
     ///
     /// Returns an error if `handle` is stale or belongs to another heap.
-    fn delete(&mut self, handle: Self::Handle) -> Result<(K, V), array::InvalidHandle>;
+    fn delete(&mut self, handle: Self::Handle) -> Result<(K, V), error::InvalidHandle>;
 
     /// Returns the number of live entries.
     fn len(&self) -> usize;
@@ -210,6 +206,26 @@ pub trait AddressableHeap<K, V> {
     fn is_empty(&self) -> bool {
         self.len() == 0
     }
+}
+
+/// An addressable heap that supports decreasing a live entry's key.
+///
+/// Every heap in this crate that tracks enough per-entry structure to
+/// restore heap order after a key decrease implements this trait in addition
+/// to [`AddressableHeap`]. A heap that cannot support the operation - for
+/// example, [`tree::BinaryTreeSoftAddressableHeap`], whose corruption-bounded
+/// structure does not track precise entry positions - simply does not
+/// implement it, so attempting to decrease its keys is a compile-time error
+/// rather than a runtime one.
+pub trait DecreaseKeyHeap<K, V>: AddressableHeap<K, V> {
+    /// Decreases the key identified by `handle`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for an invalid handle or a key with lower priority
+    /// than the current one.
+    fn decrease_key(&mut self, handle: Self::Handle, key: K)
+    -> Result<(), error::DecreaseKeyError>;
 }
 
 /// A heap that can efficiently combine its contents with another heap of the

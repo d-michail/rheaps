@@ -10,10 +10,11 @@ use std::collections::HashSet;
 use super::{
     AddressableHandle, BinaryArrayAddressableHeap, BinaryArrayBulkInsertWeakHeap, BinaryArrayHeap,
     BinaryArrayIntegerValueHeap, BinaryArrayWeakHeap, DaryArrayAddressableHeap, DaryArrayHeap,
-    DecreaseKeyError, InvalidDegree, InvalidHandle, MinMaxBinaryArrayDoubleEndedHeap,
+    InvalidDegree, MinMaxBinaryArrayDoubleEndedHeap,
 };
+use crate::error::{DecreaseKeyError, InvalidHandle};
 use crate::test_support::ReverseKey;
-use crate::{AddressableHeap, DoubleEndedHeap, Heap, ValueHeap};
+use crate::{AddressableHeap, DecreaseKeyHeap, DoubleEndedHeap, Heap, ValueHeap};
 
 const STRESS_SIZE: i32 = 10_000;
 
@@ -205,7 +206,7 @@ where
 
 fn exercise_addressable_heap<H>(make: impl Fn() -> H)
 where
-    H: AddressableHeap<i32, usize, Handle = AddressableHandle>,
+    H: AddressableHeap<i32, usize, Handle = AddressableHandle> + DecreaseKeyHeap<i32, usize>,
 {
     let mut heap = make();
     assert!(heap.is_empty());
@@ -529,7 +530,8 @@ where
 
 fn exercise_reverse_addressable_heap<H>(make: impl Fn() -> H)
 where
-    H: AddressableHeap<ReverseKey, usize, Handle = AddressableHandle>,
+    H: AddressableHeap<ReverseKey, usize, Handle = AddressableHandle>
+        + DecreaseKeyHeap<ReverseKey, usize>,
 {
     let mut heap = make();
     let handles = (0..STRESS_SIZE)

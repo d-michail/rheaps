@@ -22,8 +22,8 @@ use core::sync::atomic::{AtomicU64, Ordering as AtomicOrdering};
 
 pub use num_bigint::BigUint;
 
-use crate::array::{DecreaseKeyError, InvalidHandle};
-use crate::{AddressableHeap, Heap};
+use crate::error::{DecreaseKeyError, InvalidHandle};
+use crate::{AddressableHeap, DecreaseKeyHeap, Heap};
 
 static NEXT_HEAP_ID: AtomicU64 = AtomicU64::new(1);
 
@@ -984,14 +984,6 @@ macro_rules! define_addressable_radix_heap {
                 Self::value_mut(self, handle)
             }
 
-            fn decrease_key(
-                &mut self,
-                handle: Self::Handle,
-                key: $key,
-            ) -> Result<(), DecreaseKeyError> {
-                Self::decrease_key(self, handle, key).map_err(Into::into)
-            }
-
             fn delete(&mut self, handle: Self::Handle) -> Result<($key, V), InvalidHandle> {
                 Self::delete(self, handle)
             }
@@ -1002,6 +994,16 @@ macro_rules! define_addressable_radix_heap {
 
             fn clear(&mut self) {
                 Self::clear(self);
+            }
+        }
+
+        impl<V> DecreaseKeyHeap<$key, V> for $name<V> {
+            fn decrease_key(
+                &mut self,
+                handle: Self::Handle,
+                key: $key,
+            ) -> Result<(), DecreaseKeyError> {
+                Self::decrease_key(self, handle, key).map_err(Into::into)
             }
         }
     };

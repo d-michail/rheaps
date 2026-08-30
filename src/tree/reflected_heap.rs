@@ -2,9 +2,9 @@ use core::cmp::Reverse;
 use core::marker::PhantomData;
 use std::collections::HashMap;
 
-use crate::array::{DecreaseKeyError, IncreaseKeyError, InvalidHandle};
+use crate::error::{DecreaseKeyError, IncreaseKeyError, InvalidHandle};
 use crate::{
-    AddressableHeap, DoubleEndedAddressableHeap, MeldableAddressableHeap,
+    AddressableHeap, DecreaseKeyHeap, DoubleEndedAddressableHeap, MeldableAddressableHeap,
     MeldableDoubleEndedAddressableHeap,
 };
 
@@ -25,9 +25,10 @@ struct InnerRecord {
 /// parameter.
 trait ReflectedHeapBackend<K: Ord> {
     /// The min-oriented inner heap.
-    type Min: AddressableHeap<K, InnerRecord, Handle = TreeHandle>;
+    type Min: AddressableHeap<K, InnerRecord, Handle = TreeHandle> + DecreaseKeyHeap<K, InnerRecord>;
     /// The max-oriented inner heap.
-    type Max: AddressableHeap<Reverse<K>, InnerRecord, Handle = TreeHandle>;
+    type Max: AddressableHeap<Reverse<K>, InnerRecord, Handle = TreeHandle>
+        + DecreaseKeyHeap<Reverse<K>, InnerRecord>;
 
     /// Constructs the paired inner heaps.
     fn new() -> (Self::Min, Self::Max);
@@ -821,14 +822,6 @@ macro_rules! define_reflected_heap {
                 Self::value_mut(self, handle)
             }
 
-            fn decrease_key(
-                &mut self,
-                handle: Self::Handle,
-                key: K,
-            ) -> Result<(), DecreaseKeyError> {
-                Self::decrease_key(self, handle, key)
-            }
-
             fn delete(&mut self, handle: Self::Handle) -> Result<(K, V), InvalidHandle> {
                 Self::delete(self, handle)
             }
@@ -839,6 +832,16 @@ macro_rules! define_reflected_heap {
 
             fn clear(&mut self) {
                 Self::clear(self);
+            }
+        }
+
+        impl<K: Ord, V> DecreaseKeyHeap<K, V> for $name<K, V> {
+            fn decrease_key(
+                &mut self,
+                handle: Self::Handle,
+                key: K,
+            ) -> Result<(), DecreaseKeyError> {
+                Self::decrease_key(self, handle, key)
             }
         }
 

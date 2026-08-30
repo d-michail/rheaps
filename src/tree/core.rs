@@ -5,7 +5,7 @@ use std::collections::HashMap;
 #[cfg(test)]
 use std::collections::HashSet;
 
-use crate::array::{DecreaseKeyError, InvalidHandle};
+use crate::error::{DecreaseKeyError, InvalidHandle};
 
 static NEXT_DOMAIN_ID: AtomicU64 = AtomicU64::new(1);
 

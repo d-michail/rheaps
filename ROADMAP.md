@@ -67,22 +67,6 @@ Tasks:
 - Ensure radix range and monotonicity errors retain their detail.
 - Add compile-time and runtime examples for generic fallible use.
 
-### Decouple common traits from array errors
-
-The crate-root addressable traits currently return error types declared in the
-`array` module, even when implemented by tree, DAG, and monotone heaps.
-
-Tasks:
-
-- Move universally shared handle errors to the crate root or a neutral
-  `error` module, or introduce associated error types.
-- Determine whether `DecreaseKeyError::Unsupported` indicates that key
-  decrease belongs in a separate capability trait.
-- Keep conversions between specialized radix errors and common errors only
-  where they do not discard useful information.
-- Update documentation so errors describe capabilities rather than their
-  original implementation family.
-
 ## Medium-priority JHeaps test-port follow-up
 
 The highest-risk behavioral gaps from the JHeaps suite are covered: d-ary

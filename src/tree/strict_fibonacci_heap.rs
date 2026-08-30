@@ -1,7 +1,7 @@
 use core::cmp::Ordering;
 
-use crate::array::{DecreaseKeyError, InvalidHandle};
-use crate::{AddressableHeap, MeldableAddressableHeap};
+use crate::error::{DecreaseKeyError, InvalidHandle};
+use crate::{AddressableHeap, DecreaseKeyHeap, MeldableAddressableHeap};
 
 use super::core::{MeldError, NodeRef, TreeCore, TreeHandle};
 
@@ -319,10 +319,6 @@ impl<K: Ord, V> AddressableHeap<K, V> for StrictFibonacciHeap<K, V> {
         self.value_mut(handle)
     }
 
-    fn decrease_key(&mut self, handle: Self::Handle, key: K) -> Result<(), DecreaseKeyError> {
-        self.decrease_key(handle, key)
-    }
-
     fn delete(&mut self, handle: Self::Handle) -> Result<(K, V), InvalidHandle> {
         self.delete(handle)
     }
@@ -333,6 +329,12 @@ impl<K: Ord, V> AddressableHeap<K, V> for StrictFibonacciHeap<K, V> {
 
     fn clear(&mut self) {
         self.clear();
+    }
+}
+
+impl<K: Ord, V> DecreaseKeyHeap<K, V> for StrictFibonacciHeap<K, V> {
+    fn decrease_key(&mut self, handle: Self::Handle, key: K) -> Result<(), DecreaseKeyError> {
+        self.decrease_key(handle, key)
     }
 }
 

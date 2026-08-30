@@ -1,4 +1,4 @@
-use crate::array::{DecreaseKeyError, InvalidHandle};
+use crate::error::InvalidHandle;
 use crate::{AddressableHeap, Heap, MeldableAddressableHeap, MeldableHeap};
 
 use super::soft_heap_core::{SoftHandle, SoftHeapCore, SoftHeapError, SoftMeldError};
@@ -6,8 +6,10 @@ use super::soft_heap_core::{SoftHandle, SoftHeapCore, SoftHeapError, SoftMeldErr
 /// An addressable Kaplan-Zwick binary-tree soft heap.
 ///
 /// Keys may be returned out of order according to the configured error rate.
-/// As in JHeaps, key decreases are not supported; values, deletion, and melds
-/// retain checked opaque handles.
+/// As in JHeaps, key decreases are not supported: this heap does not
+/// implement [`crate::DecreaseKeyHeap`] because its corruption-bounded
+/// structure does not track precise per-entry positions. Values, deletion,
+/// and melds retain checked opaque handles.
 pub struct BinaryTreeSoftAddressableHeap<K, V = ()> {
     core: SoftHeapCore<K, V>,
 }
@@ -63,14 +65,6 @@ impl<K: Ord + Clone, V> BinaryTreeSoftAddressableHeap<K, V> {
     /// Returns mutable access to the value identified by `handle`.
     pub fn value_mut(&mut self, handle: SoftHandle) -> Result<&mut V, InvalidHandle> {
         self.core.value_mut(handle)
-    }
-
-    /// Reports that binary-tree soft heaps do not support key decreases.
-    pub fn decrease_key(&mut self, handle: SoftHandle, _key: K) -> Result<(), DecreaseKeyError> {
-        self.core
-            .validate_handle(handle)
-            .map_err(DecreaseKeyError::InvalidHandle)?;
-        Err(DecreaseKeyError::Unsupported)
     }
 
     /// Removes and returns the entry identified by `handle`.
@@ -138,10 +132,6 @@ impl<K: Ord + Clone, V> AddressableHeap<K, V> for BinaryTreeSoftAddressableHeap<
 
     fn value_mut(&mut self, handle: Self::Handle) -> Result<&mut V, InvalidHandle> {
         Self::value_mut(self, handle)
-    }
-
-    fn decrease_key(&mut self, handle: Self::Handle, key: K) -> Result<(), DecreaseKeyError> {
-        Self::decrease_key(self, handle, key)
     }
 
     fn delete(&mut self, handle: Self::Handle) -> Result<(K, V), InvalidHandle> {

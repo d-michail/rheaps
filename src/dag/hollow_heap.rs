@@ -2,9 +2,9 @@ use core::cmp::Ordering;
 use core::sync::atomic::{AtomicU64, Ordering as AtomicOrdering};
 use std::collections::HashMap;
 
-use crate::array::{DecreaseKeyError, InvalidHandle};
+use crate::error::{DecreaseKeyError, InvalidHandle};
 use crate::tree::MeldError;
-use crate::{AddressableHeap, MeldableAddressableHeap};
+use crate::{AddressableHeap, DecreaseKeyHeap, MeldableAddressableHeap};
 
 static NEXT_DOMAIN_ID: AtomicU64 = AtomicU64::new(1);
 
@@ -680,10 +680,6 @@ impl<K: Ord, V> AddressableHeap<K, V> for HollowHeap<K, V> {
         Self::value_mut(self, handle)
     }
 
-    fn decrease_key(&mut self, handle: Self::Handle, key: K) -> Result<(), DecreaseKeyError> {
-        Self::decrease_key(self, handle, key)
-    }
-
     fn delete(&mut self, handle: Self::Handle) -> Result<(K, V), InvalidHandle> {
         Self::delete(self, handle)
     }
@@ -694,6 +690,12 @@ impl<K: Ord, V> AddressableHeap<K, V> for HollowHeap<K, V> {
 
     fn clear(&mut self) {
         Self::clear(self);
+    }
+}
+
+impl<K: Ord, V> DecreaseKeyHeap<K, V> for HollowHeap<K, V> {
+    fn decrease_key(&mut self, handle: Self::Handle, key: K) -> Result<(), DecreaseKeyError> {
+        Self::decrease_key(self, handle, key)
     }
 }
 

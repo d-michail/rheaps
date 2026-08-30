@@ -2,7 +2,7 @@ use core::cmp::Ordering;
 use core::fmt;
 use std::collections::{BTreeMap, HashMap};
 
-use crate::array::InvalidHandle;
+use crate::error::InvalidHandle;
 
 use super::core::next_domain_id;
 
@@ -335,10 +335,6 @@ impl<K: Ord + Clone, V> SoftHeapCore<K, V> {
 
     pub(crate) fn key(&self, handle: SoftHandle) -> Result<&K, InvalidHandle> {
         Ok(&self.item(self.validate(handle)?).key)
-    }
-
-    pub(crate) fn validate_handle(&self, handle: SoftHandle) -> Result<(), InvalidHandle> {
-        self.validate(handle).map(|_| ())
     }
 
     pub(crate) fn value(&self, handle: SoftHandle) -> Result<&V, InvalidHandle> {
