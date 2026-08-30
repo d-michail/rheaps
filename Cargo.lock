@@ -38,7 +38,7 @@ dependencies = [
 
 [[package]]
 name = "rheaps"
-version = "0.1.0"
+version = "0.16.0"
 dependencies = [
  "num-bigint",
 ]

@@ -50,6 +50,18 @@ Some implementations provide additional operations:
 - **Soft heaps** permit controlled key corruption in exchange for useful
   amortized performance bounds.
 
+## Choosing an implementation
+
+| Module                     | Representative types                                                       | Reach for it when you need                                                       |
+| -------------------------- | ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| [`array`](src/array)       | `BinaryArrayHeap`, `DaryArrayHeap`, weak heaps                               | the smallest, cache-friendly heap for `push`/`pop`, optionally addressable       |
+| [`tree`](src/tree)         | leftist, skew, pairing, rank-pairing, Fibonacci, soft, and reflected heaps    | efficient meld, amortized O(1) decrease-key, or both minimum and maximum access |
+| [`dag`](src/dag)           | `HollowHeap`                                                                  | meld and decrease-key without cutting nodes from a parent                       |
+| [`monotone`](src/monotone) | radix heaps over `u32`, `u64`, `FiniteF64`, and `BigUint`                     | keys are removed in nondecreasing order, e.g. Dijkstra's algorithm              |
+
+See [Implementations](#implementations) below for the full list, and each
+type's rustdoc for the traits it implements.
+
 ## Installation
 
 The crate uses Rust 2024 edition. To use the current repository version, add:
@@ -126,6 +138,49 @@ heap.push(Reverse(4));
 heap.push(Reverse(3));
 
 assert_eq!(heap.pop(), Some(Reverse(4)));
+```
+
+### Melding heaps
+
+A meldable heap efficiently absorbs another heap of the same concrete type.
+The donor is consumed on success: it becomes empty and rejects further
+mutation, while any handles it had already issued stay valid through the
+receiver.
+
+```rust
+use rheaps::{Heap, MeldableHeap};
+use rheaps::tree::PairingHeap;
+
+let mut a = PairingHeap::new();
+a.push(3);
+a.push(5);
+
+let mut b = PairingHeap::new();
+b.push(1);
+b.push(4);
+
+a.meld(&mut b).unwrap();
+assert_eq!(a.pop(), Some(1));
+assert_eq!(b.pop(), None); // b was consumed by the meld
+```
+
+### Double-ended heaps
+
+A double-ended heap gives efficient access to both the minimum and the
+maximum without maintaining two separate heaps.
+
+```rust
+use rheaps::{DoubleEndedHeap, Heap};
+use rheaps::array::MinMaxBinaryArrayDoubleEndedHeap;
+
+let mut heap = MinMaxBinaryArrayDoubleEndedHeap::new();
+heap.push(4);
+heap.push(1);
+heap.push(3);
+
+assert_eq!(heap.peek(), Some(&1));
+assert_eq!(heap.peek_max(), Some(&4));
+assert_eq!(heap.pop_max(), Some(4));
 ```
 
 ### Monotone radix heaps

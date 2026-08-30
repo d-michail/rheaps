@@ -1,12 +1,64 @@
-//! Heap data structures for Rust.
+//! Heap and priority-queue data structures for Rust.
 //!
-//! `rheaps` is an incremental Rust port of
-//! [JHeaps](https://github.com/d-michail/jheaps). The public API follows Rust
-//! conventions: queries borrow their result and removing from an empty heap
-//! returns `None`.
-//! Heap keys must implement [`Ord`]. To select a different priority order,
-//! wrap keys in a newtype that implements [`Ord`] with the desired order (for
-//! example, reverse the comparison for max-oriented behavior).
+//! `rheaps` is an idiomatic Rust port of
+//! [JHeaps](https://github.com/d-michail/jheaps), a mature Java heap library.
+//! It packages array, tree, DAG, double-ended, addressable, meldable, soft,
+//! and monotone heaps behind a small set of common traits, so generic code
+//! can be written against a capability (say, [`AddressableHeap`]) instead of
+//! a concrete type.
+//!
+//! # Quick start
+//!
+//! ```
+//! use rheaps::Heap;
+//! use rheaps::array::BinaryArrayHeap;
+//!
+//! let mut heap = BinaryArrayHeap::new();
+//! heap.push(4);
+//! heap.push(1);
+//! heap.push(3);
+//!
+//! assert_eq!(heap.peek(), Some(&1));
+//! assert_eq!(heap.pop(), Some(1));
+//! ```
+//!
+//! # Choosing an implementation
+//!
+//! | Module        | Representative types                                                    | Reach for it when you need                                              |
+//! |---------------|---------------------------------------------------------------------------|---------------------------------------------------------------------------|
+//! | [`mod@array`] | `BinaryArrayHeap`, `DaryArrayHeap`, weak heaps                            | the smallest, cache-friendly heap for `push`/`pop`, optionally addressable |
+//! | [`tree`]      | leftist, skew, pairing, rank-pairing, Fibonacci, soft, and reflected heaps | efficient meld, amortized O(1) decrease-key, or both minimum and maximum access |
+//! | [`dag`]       | `HollowHeap`                                                              | meld and decrease-key without cutting nodes from a parent                 |
+//! | [`monotone`]  | radix heaps over `u32`, `u64`, `FiniteF64`, and `BigUint`                  | keys are removed in nondecreasing order, e.g. Dijkstra's algorithm         |
+//!
+//! Each module's own documentation lists its concrete types and the common
+//! traits each one implements.
+//!
+//! # Concepts
+//!
+//! - **Ordering.** Keys use their [`Ord`] implementation, and duplicate keys
+//!   are permitted. Wrap a key in a newtype (or [`std::cmp::Reverse`]) to
+//!   change its priority order; for example, `Reverse` turns any
+//!   min-oriented heap into a max-oriented one.
+//! - **Handles.** [`AddressableHeap::insert`] returns an opaque, `Copy`
+//!   handle used to inspect, update, or delete that entry later. A handle is
+//!   rejected once its entry is removed, its heap is cleared, or it is
+//!   presented to a different heap instance.
+//! - **Melding.** [`MeldableHeap::meld`] and its addressable and
+//!   double-ended counterparts efficiently absorb another heap of the same
+//!   concrete type. A successful meld consumes the donor for further
+//!   mutation; handles the donor already issued stay valid through the
+//!   receiver.
+//! - **Fallibility.** Ordinary heaps never fail to insert. Radix heaps in
+//!   [`monotone`] are the exception: their constructors validate key bounds,
+//!   and insertion enforces monotonicity, both reported through `Result`.
+//!
+//! # Relationship to JHeaps
+//!
+//! The implementation set and much of the behavioral test coverage are
+//! derived from [JHeaps](https://github.com/d-michail/jheaps). The API
+//! follows Rust's ownership, trait, and error-handling conventions rather
+//! than reproducing the Java API literally.
 
 pub mod array;
 pub mod dag;
