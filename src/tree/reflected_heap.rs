@@ -13,6 +13,7 @@ use super::core::{TreeHandle, next_domain_id};
 use super::{FibonacciHeap, PairingHeap};
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 struct InnerRecord {
     outer: ReflectedHandle,
     other: Option<TreeHandle>,
@@ -37,6 +38,7 @@ trait ReflectedHeapBackend<K: Ord> {
 
 /// Uses Fibonacci heaps in a reflected heap.
 #[derive(Clone, Copy, Debug, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 struct FibonacciReflectedBackend;
 
 impl<K: Ord> ReflectedHeapBackend<K> for FibonacciReflectedBackend {
@@ -50,6 +52,7 @@ impl<K: Ord> ReflectedHeapBackend<K> for FibonacciReflectedBackend {
 
 /// Uses pairing heaps in a reflected heap.
 #[derive(Clone, Copy, Debug, Default)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 struct PairingReflectedBackend;
 
 impl<K: Ord> ReflectedHeapBackend<K> for PairingReflectedBackend {
@@ -63,12 +66,14 @@ impl<K: Ord> ReflectedHeapBackend<K> for PairingReflectedBackend {
 
 /// An opaque handle for an entry in a reflected double-ended heap.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct ReflectedHandle {
     domain: u64,
     slot: usize,
     generation: u64,
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 struct OuterEntry<K, V> {
     key: Option<K>,
     value: V,
@@ -76,16 +81,19 @@ struct OuterEntry<K, V> {
 }
 
 #[derive(Clone, Copy)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 enum Location {
     Min(TreeHandle),
     Max(TreeHandle),
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 struct OuterSlot<K, V> {
     entry: Option<OuterEntry<K, V>>,
     generation: u64,
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 struct OuterArena<K, V> {
     slots: Vec<OuterSlot<K, V>>,
     free_slots: Vec<usize>,
@@ -140,6 +148,14 @@ impl<K, V> OuterArena<K, V> {
 /// of elements is odd. Not public: [`ReflectedFibonacciHeap`] and
 /// [`ReflectedPairingHeap`] each wrap this type with a fixed backend instead
 /// of exposing the backend parameter.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(
+    feature = "serde",
+    serde(bound(
+        serialize = "K: serde::Serialize, V: serde::Serialize, B: serde::Serialize, B::Min: serde::Serialize, B::Max: serde::Serialize",
+        deserialize = "K: serde::Deserialize<'de>, V: serde::Deserialize<'de>, B: serde::Deserialize<'de>, B::Min: serde::Deserialize<'de>, B::Max: serde::Deserialize<'de>"
+    ))
+)]
 struct ReflectedHeap<K, V, B>
 where
     K: Ord,
@@ -631,6 +647,18 @@ where
 macro_rules! define_reflected_heap {
     ($name:ident, $backend:ty, $doc:literal) => {
         #[doc = $doc]
+        #[doc = concat!(
+                                    "\n\n```\nuse rheaps::tree::", stringify!($name), ";\n\n",
+                                    "let mut heap = ", stringify!($name), "::new();\n",
+                                    "heap.push(4);\n",
+                                    "heap.push(1);\n",
+                                    "heap.push(3);\n\n",
+                                    "assert_eq!(heap.peek(), Some(&1));\n",
+                                    "assert_eq!(heap.peek_max(), Some(&4));\n",
+                                    "assert_eq!(heap.pop_max(), Some(4));\n",
+                                    "```",
+                                )]
+        #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
         pub struct $name<K, V = ()>
         where
             K: Ord,

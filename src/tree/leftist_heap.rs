@@ -10,6 +10,20 @@ use super::core::{NodeRef, TreeCore, TreeHandle};
 ///
 /// Insert, minimum removal, deletion, key decrease, and melding take
 /// `O(log n)` worst-case time; finding the minimum is `O(1)`.
+///
+/// ```
+/// use rheaps::tree::LeftistHeap;
+///
+/// let mut heap = LeftistHeap::new();
+/// heap.push(4);
+/// heap.push(1);
+/// heap.push(3);
+///
+/// assert_eq!(heap.peek(), Some(&1));
+/// assert_eq!(heap.pop(), Some(1));
+/// assert_eq!(heap.pop(), Some(3));
+/// ```
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct LeftistHeap<K, V = ()> {
     core: TreeCore<K, V>,
 }

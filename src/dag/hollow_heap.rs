@@ -14,6 +14,7 @@ static NEXT_DOMAIN_ID: AtomicU64 = AtomicU64::new(1);
 /// hollow heap. It becomes stale after its entry is removed or the receiving
 /// heap is cleared.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct HollowHandle {
     domain: u64,
     slot: usize,
@@ -21,17 +22,20 @@ pub struct HollowHandle {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 struct NodeRef {
     domain: u64,
     slot: usize,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 struct ItemRef {
     domain: u64,
     slot: usize,
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 struct Item<K, V> {
     key: K,
     value: V,
@@ -43,6 +47,7 @@ struct Item<K, V> {
 /// A node holds an item only while it is full. `child`, `next`, and
 /// `second_parent` are indices into stable slot arenas, avoiding self
 /// references and unsafe pointers.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 struct Node {
     item: Option<ItemRef>,
     child: Option<NodeRef>,
@@ -51,11 +56,13 @@ struct Node {
     rank: usize,
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 struct Slot<T> {
     value: Option<T>,
     generation: u64,
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 struct Arena<T> {
     slots: Vec<Slot<T>>,
     free_slots: Vec<usize>,
@@ -123,6 +130,7 @@ impl<T> Arena<T> {
     }
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 struct DomainArena<K, V> {
     nodes: Arena<Node>,
     items: Arena<Item<K, V>>,
@@ -152,6 +160,25 @@ impl<K, V> DomainArena<K, V> {
 /// The implementation uses slot arenas rather than pointers. Entries and
 /// nodes have independent stable storage, so opaque handles survive moves and
 /// successful melds without unsafe code or a binary-heap substitute.
+///
+/// # Examples
+///
+/// ```
+/// use rheaps::AddressableHeap;
+/// use rheaps::dag::HollowHeap;
+///
+/// let mut heap = HollowHeap::new();
+/// let task = heap.insert(10, "compile report");
+/// heap.insert(5, "answer mail");
+///
+/// heap.decrease_key(task, 1).unwrap();
+/// assert_eq!(
+///     heap.peek().map(|(_, key, value)| (*key, *value)),
+///     Some((1, "compile report")),
+/// );
+/// assert_eq!(heap.delete(task), Ok((1, "compile report")));
+/// ```
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct HollowHeap<K, V = ()> {
     root: Option<NodeRef>,
     len: usize,
@@ -528,14 +555,14 @@ impl<K: Ord, V> HollowHeap<K, V> {
             self.arenas
                 .values()
                 .map(|arena| arena.nodes.live_len())
-                .sum()
+                .sum::<usize>()
         );
         assert_eq!(
             self.len,
             self.arenas
                 .values()
                 .map(|arena| arena.items.live_len())
-                .sum()
+                .sum::<usize>()
         );
         assert_eq!(self.root.is_none(), self.len == 0);
 

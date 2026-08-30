@@ -204,21 +204,27 @@ where
 }
 
 #[test]
-fn value_radix_heaps_sort_random_and_boundary_keys() {
+fn u32_radix_heap_sorts_random_and_boundary_keys() {
     let mut random = JavaRandom::new(1);
     let integers = core::iter::once(0)
         .chain(core::iter::once(u32::MAX))
         .chain((0..RANDOM_VALUES).map(|_| (random.next_u64() % 100_001) as u32))
         .collect();
     exercise_value_heap(U32RadixHeap::new(0, u32::MAX).unwrap(), integers);
+}
 
+#[test]
+fn u64_radix_heap_sorts_random_and_boundary_keys() {
     let mut random = JavaRandom::new(2);
     let longs = core::iter::once(0)
         .chain(core::iter::once(u64::MAX))
         .chain((0..RANDOM_VALUES).map(|_| random.next_u64() % 100_001))
         .collect();
     exercise_value_heap(U64RadixHeap::new(0, u64::MAX).unwrap(), longs);
+}
 
+#[test]
+fn f64_radix_heap_sorts_random_and_boundary_keys() {
     let mut random = JavaRandom::new(3);
     let doubles = core::iter::once(0.0)
         .chain(core::iter::once(f64::MAX))
@@ -230,7 +236,10 @@ fn value_radix_heaps_sort_random_and_boundary_keys() {
         F64RadixHeap::new(finite(0.0), finite(f64::MAX)).unwrap(),
         doubles,
     );
+}
 
+#[test]
+fn biguint_radix_heap_sorts_random_and_boundary_keys() {
     let minimum = (BigUint::from(1_u8) << 130_usize) + BigUint::from(7_u8);
     let maximum = minimum.clone() + (BigUint::from(1_u8) << 130_usize);
     let mut random = JavaRandom::new(4);
@@ -248,19 +257,25 @@ fn value_radix_heaps_sort_random_and_boundary_keys() {
 }
 
 #[test]
-fn addressable_radix_heaps_sort_random_and_invalidate_handles() {
+fn u32_addressable_radix_heap_sorts_random_and_invalidates_handles() {
     let mut random = JavaRandom::new(5);
     let integers = core::iter::once(0)
         .chain((0..RANDOM_VALUES).map(|_| (random.next_u64() % 100_001) as u32))
         .collect();
     exercise_addressable_heap(U32RadixAddressableHeap::new(0, 100_000).unwrap(), integers);
+}
 
+#[test]
+fn u64_addressable_radix_heap_sorts_random_and_invalidates_handles() {
     let mut random = JavaRandom::new(6);
     let longs = core::iter::once(0)
         .chain((0..RANDOM_VALUES).map(|_| random.next_u64() % 100_001))
         .collect();
     exercise_addressable_heap(U64RadixAddressableHeap::new(0, 100_000).unwrap(), longs);
+}
 
+#[test]
+fn f64_addressable_radix_heap_sorts_random_and_invalidates_handles() {
     let mut random = JavaRandom::new(7);
     let doubles = core::iter::once(0.0)
         .chain((0..RANDOM_VALUES).map(|_| (random.next_u64() % 100_001) as f64 / 10.0))
@@ -270,7 +285,10 @@ fn addressable_radix_heaps_sort_random_and_invalidate_handles() {
         F64RadixAddressableHeap::new(finite(0.0), finite(10_000.0)).unwrap(),
         doubles,
     );
+}
 
+#[test]
+fn biguint_addressable_radix_heap_sorts_random_and_invalidates_handles() {
     let minimum = BigUint::from(1_u8) << 130_usize;
     let maximum = minimum.clone() + BigUint::from(100_000_u32);
     let mut random = JavaRandom::new(8);
@@ -287,36 +305,12 @@ fn addressable_radix_heaps_sort_random_and_invalidate_handles() {
 }
 
 #[test]
-fn value_radix_heaps_cover_jheaps_regression_sequences() {
+fn u32_radix_heap_covers_jheaps_regression_sequences() {
     exercise_value_heap(
         U32RadixHeap::new(29, 36).unwrap(),
         vec![29, 30, 31, 30, 33, 36, 35],
     );
-    exercise_value_heap(
-        U64RadixHeap::new(29, 36).unwrap(),
-        vec![29, 30, 31, 30, 33, 36, 35],
-    );
-    exercise_value_heap(
-        BigUintRadixHeap::new(BigUint::from(29_u8), BigUint::from(36_u8)).unwrap(),
-        [29_u8, 30, 31, 30, 33, 36, 35]
-            .into_iter()
-            .map(BigUint::from)
-            .collect(),
-    );
-    exercise_value_heap(
-        F64RadixHeap::new(finite(15.0), finite(50.5)).unwrap(),
-        [15.3, 50.4, 20.999_999, 50.5, 30.3, 25.2, 17.777_7]
-            .into_iter()
-            .map(finite)
-            .collect(),
-    );
-
     exercise_value_heap(U32RadixHeap::new(0, u32::MAX).unwrap(), vec![0, u32::MAX]);
-    exercise_value_heap(U64RadixHeap::new(0, u64::MAX).unwrap(), vec![0, u64::MAX]);
-    exercise_value_heap(
-        F64RadixHeap::new(finite(0.0), finite(f64::MAX)).unwrap(),
-        vec![finite(0.0), finite(f64::MAX)],
-    );
 
     let mut same = U32RadixHeap::new(15, 15).unwrap();
     for _ in 0..15 {
@@ -326,6 +320,15 @@ fn value_radix_heaps_cover_jheaps_regression_sequences() {
         (0..15).map(|_| same.pop()).collect::<Vec<_>>(),
         vec![Some(15); 15]
     );
+}
+
+#[test]
+fn u64_radix_heap_covers_jheaps_regression_sequences() {
+    exercise_value_heap(
+        U64RadixHeap::new(29, 36).unwrap(),
+        vec![29, 30, 31, 30, 33, 36, 35],
+    );
+    exercise_value_heap(U64RadixHeap::new(0, u64::MAX).unwrap(), vec![0, u64::MAX]);
 
     let mut after_min = U64RadixHeap::new(0, 15).unwrap();
     after_min.try_push(0).unwrap();
@@ -335,28 +338,44 @@ fn value_radix_heaps_cover_jheaps_regression_sequences() {
 }
 
 #[test]
-fn addressable_radix_heaps_cover_jheaps_regression_sequences() {
-    exercise_addressable_heap(
-        U32RadixAddressableHeap::new(15, 100).unwrap(),
-        vec![15, 50, 21, 51, 30, 25, 18],
-    );
-    exercise_addressable_heap(
-        U64RadixAddressableHeap::new(15, 100).unwrap(),
-        vec![15, 50, 21, 51, 30, 25, 18],
-    );
-    exercise_addressable_heap(
-        BigUintRadixAddressableHeap::new(BigUint::from(29_u8), BigUint::from(36_u8)).unwrap(),
+fn biguint_radix_heap_covers_jheaps_regression_sequences() {
+    exercise_value_heap(
+        BigUintRadixHeap::new(BigUint::from(29_u8), BigUint::from(36_u8)).unwrap(),
         [29_u8, 30, 31, 30, 33, 36, 35]
             .into_iter()
             .map(BigUint::from)
             .collect(),
     );
-    exercise_addressable_heap(
-        F64RadixAddressableHeap::new(finite(15.0), finite(50.5)).unwrap(),
+}
+
+#[test]
+fn f64_radix_heap_covers_jheaps_regression_sequences() {
+    exercise_value_heap(
+        F64RadixHeap::new(finite(15.0), finite(50.5)).unwrap(),
         [15.3, 50.4, 20.999_999, 50.5, 30.3, 25.2, 17.777_7]
             .into_iter()
             .map(finite)
             .collect(),
+    );
+    exercise_value_heap(
+        F64RadixHeap::new(finite(0.0), finite(f64::MAX)).unwrap(),
+        vec![finite(0.0), finite(f64::MAX)],
+    );
+}
+
+#[test]
+fn u32_addressable_radix_heap_covers_jheaps_regression_sequences() {
+    exercise_addressable_heap(
+        U32RadixAddressableHeap::new(15, 100).unwrap(),
+        vec![15, 50, 21, 51, 30, 25, 18],
+    );
+}
+
+#[test]
+fn u64_addressable_radix_heap_covers_jheaps_regression_sequences() {
+    exercise_addressable_heap(
+        U64RadixAddressableHeap::new(15, 100).unwrap(),
+        vec![15, 50, 21, 51, 30, 25, 18],
     );
 
     let mut update = U64RadixAddressableHeap::new(0, u64::MAX).unwrap();
@@ -366,6 +385,28 @@ fn addressable_radix_heaps_cover_jheaps_regression_sequences() {
     assert_eq!(update.pop().map(|entry| entry.0), Some(0));
     assert_eq!(update.pop().map(|entry| entry.0), Some(0));
     assert_eq!(update.peek().map(|entry| entry.1), Some(&u64::MAX));
+}
+
+#[test]
+fn biguint_addressable_radix_heap_covers_jheaps_regression_sequences() {
+    exercise_addressable_heap(
+        BigUintRadixAddressableHeap::new(BigUint::from(29_u8), BigUint::from(36_u8)).unwrap(),
+        [29_u8, 30, 31, 30, 33, 36, 35]
+            .into_iter()
+            .map(BigUint::from)
+            .collect(),
+    );
+}
+
+#[test]
+fn f64_addressable_radix_heap_covers_jheaps_regression_sequences() {
+    exercise_addressable_heap(
+        F64RadixAddressableHeap::new(finite(15.0), finite(50.5)).unwrap(),
+        [15.3, 50.4, 20.999_999, 50.5, 30.3, 25.2, 17.777_7]
+            .into_iter()
+            .map(finite)
+            .collect(),
+    );
 
     let mut regression =
         F64RadixAddressableHeap::new(finite(0.0), finite(3.667_944_409_236_726)).unwrap();
@@ -427,7 +468,7 @@ macro_rules! exercise_addressable_handles {
 }
 
 #[test]
-fn addressable_heaps_validate_handles_and_monotone_key_updates() {
+fn u32_addressable_radix_heap_validates_handles_and_monotone_key_updates() {
     exercise_addressable_handles!(
         U32RadixAddressableHeap::new(0, 100).unwrap(),
         0_u32,
@@ -437,6 +478,10 @@ fn addressable_heaps_validate_handles_and_monotone_key_updates() {
         20_u32,
         30_u32
     );
+}
+
+#[test]
+fn u64_addressable_radix_heap_validates_handles_and_monotone_key_updates() {
     exercise_addressable_handles!(
         U64RadixAddressableHeap::new(0, 100).unwrap(),
         0_u64,
@@ -446,6 +491,10 @@ fn addressable_heaps_validate_handles_and_monotone_key_updates() {
         20_u64,
         30_u64
     );
+}
+
+#[test]
+fn f64_addressable_radix_heap_validates_handles_and_monotone_key_updates() {
     exercise_addressable_handles!(
         F64RadixAddressableHeap::new(finite(0.0), finite(100.0)).unwrap(),
         finite(0.0),
@@ -455,6 +504,10 @@ fn addressable_heaps_validate_handles_and_monotone_key_updates() {
         finite(20.0),
         finite(30.0)
     );
+}
+
+#[test]
+fn biguint_addressable_radix_heap_validates_handles_and_monotone_key_updates() {
     exercise_addressable_handles!(
         BigUintRadixAddressableHeap::new(BigUint::from(0_u8), BigUint::from(100_u8)).unwrap(),
         BigUint::from(0_u8),
@@ -467,7 +520,7 @@ fn addressable_heaps_validate_handles_and_monotone_key_updates() {
 }
 
 #[test]
-fn heaps_report_range_and_monotonicity_errors() {
+fn u32_radix_heap_reports_range_and_monotonicity_errors() {
     assert!(matches!(
         U32RadixHeap::new(2, 1),
         Err(RadixHeapError::InvalidRange)
@@ -481,7 +534,10 @@ fn heaps_report_range_and_monotonicity_errors() {
         Err(RadixHeapError::MonotonicityViolation)
     );
     assert_eq!(integer.try_push(21), Err(RadixHeapError::KeyOutOfRange));
+}
 
+#[test]
+fn u64_radix_heap_reports_range_and_monotonicity_errors() {
     assert!(matches!(
         U64RadixHeap::new(2, 1),
         Err(RadixHeapError::InvalidRange)
@@ -493,7 +549,10 @@ fn heaps_report_range_and_monotonicity_errors() {
         long.try_push(14),
         Err(RadixHeapError::MonotonicityViolation)
     );
+}
 
+#[test]
+fn biguint_radix_heap_reports_range_and_monotonicity_errors() {
     let minimum = BigUint::from(10_u8);
     let mut big = BigUintRadixHeap::new(minimum.clone(), BigUint::from(20_u8)).unwrap();
     big.try_push(BigUint::from(15_u8)).unwrap();
@@ -568,4 +627,54 @@ fn common_try_heap_traits_remain_usable_generically() {
         Err(RadixDecreaseKeyError::NotDecreased)
     );
     assert_eq!(TryAddressableHeap::pop(&mut entries), Some((1, "entry")));
+}
+
+#[cfg(feature = "serde")]
+#[test]
+fn u32_radix_heap_round_trips_through_serde_json() {
+    let mut heap = U32RadixHeap::new(0, 100).unwrap();
+    heap.try_push(30).unwrap();
+    heap.try_push(10).unwrap();
+    heap.try_push(20).unwrap();
+
+    let json = serde_json::to_string(&heap).unwrap();
+    let mut restored: U32RadixHeap = serde_json::from_str(&json).unwrap();
+
+    assert_eq!(restored.pop(), Some(10));
+    assert_eq!(restored.pop(), Some(20));
+    assert_eq!(restored.pop(), Some(30));
+    assert_eq!(restored.pop(), None);
+}
+
+#[cfg(feature = "serde")]
+#[test]
+fn f64_radix_heap_round_trips_through_serde_json() {
+    let mut heap = F64RadixHeap::new(finite(0.0), finite(100.0)).unwrap();
+    heap.try_push(finite(30.0)).unwrap();
+    heap.try_push(finite(10.0)).unwrap();
+    heap.try_push(finite(20.0)).unwrap();
+
+    let json = serde_json::to_string(&heap).unwrap();
+    let mut restored: F64RadixHeap = serde_json::from_str(&json).unwrap();
+
+    assert_eq!(restored.pop(), Some(finite(10.0)));
+    assert_eq!(restored.pop(), Some(finite(20.0)));
+    assert_eq!(restored.pop(), Some(finite(30.0)));
+    assert_eq!(restored.pop(), None);
+}
+
+#[cfg(feature = "serde")]
+#[test]
+fn u32_addressable_radix_heap_round_trips_through_serde_json() {
+    let mut heap = U32RadixAddressableHeap::new(0, 100).unwrap();
+    let task = heap.try_insert(30, "compile report").unwrap();
+    heap.try_insert(10, "answer mail").unwrap();
+
+    let json = serde_json::to_string(&heap).unwrap();
+    let mut restored: U32RadixAddressableHeap<&str> = serde_json::from_str(&json).unwrap();
+
+    assert_eq!(restored.key(task), Ok(&30));
+    restored.decrease_key(task, 20).unwrap();
+    assert_eq!(restored.pop(), Some((10, "answer mail")));
+    assert_eq!(restored.delete(task), Ok((20, "compile report")));
 }

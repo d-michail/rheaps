@@ -13,6 +13,20 @@ use super::core::{NodeRef, TreeCore, TreeHandle};
 /// pointer-free representation preserves the public strict-Fibonacci behavior
 /// and meldable handles while avoiding the intrusive circular lists required
 /// by the original fix-list implementation.
+///
+/// ```
+/// use rheaps::tree::StrictFibonacciHeap;
+///
+/// let mut heap = StrictFibonacciHeap::new();
+/// heap.push(4);
+/// heap.push(1);
+/// heap.push(3);
+///
+/// assert_eq!(heap.peek(), Some(&1));
+/// assert_eq!(heap.pop(), Some(1));
+/// assert_eq!(heap.pop(), Some(3));
+/// ```
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct StrictFibonacciHeap<K, V = ()> {
     core: TreeCore<K, V>,
     roots: Vec<NodeRef>,

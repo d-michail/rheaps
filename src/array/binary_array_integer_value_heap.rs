@@ -5,6 +5,7 @@ const DEFAULT_HEAP_CAPACITY: usize = 16;
 /// A key-value entry, kept as named fields so sift comparisons cannot
 /// accidentally compare `value` alongside `key`.
 #[derive(Clone, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 struct Entry<V> {
     key: i32,
     value: V,
@@ -44,7 +45,20 @@ impl<'a, V> Iterator for Iter<'a, V> {
 ///
 /// Keys are stored directly. Insertion
 /// and removal are `O(log n)` and construction from a vector is `O(n)`.
+///
+/// ```
+/// use rheaps::ValueHeap;
+/// use rheaps::array::BinaryArrayIntegerValueHeap;
+///
+/// let mut heap = BinaryArrayIntegerValueHeap::new();
+/// heap.insert(4, "four");
+/// heap.insert(1, "one");
+/// heap.insert(3, "three");
+///
+/// assert_eq!(heap.pop(), Some((1, "one")));
+/// ```
 #[derive(Clone, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BinaryArrayIntegerValueHeap<V> {
     entries: Vec<Entry<V>>,
 }

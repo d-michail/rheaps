@@ -11,6 +11,20 @@ use super::core::{NodeRef, TreeCore, TreeHandle};
 /// Insert, minimum removal, key decrease, and melding are amortized
 /// `O(log n)`; looking up the minimum is `O(1)`. This is the classic two-pass
 /// pairing-heap algorithm, not an array-backed priority queue.
+///
+/// ```
+/// use rheaps::tree::PairingHeap;
+///
+/// let mut heap = PairingHeap::new();
+/// heap.push(4);
+/// heap.push(1);
+/// heap.push(3);
+///
+/// assert_eq!(heap.peek(), Some(&1));
+/// assert_eq!(heap.pop(), Some(1));
+/// assert_eq!(heap.pop(), Some(3));
+/// ```
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct PairingHeap<K, V = ()> {
     core: TreeCore<K, V>,
 }

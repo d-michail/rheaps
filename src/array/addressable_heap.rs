@@ -12,23 +12,27 @@ static NEXT_HEAP_ID: AtomicU64 = AtomicU64::new(1);
 /// Handles are `Copy`, but they are only valid in the heap that created them.
 /// They become invalid after their entry is removed or after [`AddressableHeap::clear`].
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct AddressableHandle {
     heap_id: u64,
     slot: usize,
     generation: u64,
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 struct Entry<K, V> {
     key: K,
     value: V,
     slot: usize,
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 struct Slot {
     index: Option<usize>,
     generation: u64,
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 struct AddressableCore<K, V> {
     entries: Vec<Entry<K, V>>,
     slots: Vec<Slot>,
@@ -282,6 +286,19 @@ fn next_heap_id() -> u64 {
 ///
 /// Insertion, removal, deletion by handle, and key decreases are `O(log n)`;
 /// inspecting the minimum is `O(1)`.
+///
+/// ```
+/// use rheaps::AddressableHeap;
+/// use rheaps::array::BinaryArrayAddressableHeap;
+///
+/// let mut heap = BinaryArrayAddressableHeap::new();
+/// let task = heap.insert(10, "compile report");
+/// heap.insert(5, "answer mail");
+///
+/// assert_eq!(heap.delete(task), Ok((10, "compile report")));
+/// assert_eq!(heap.pop(), Some((5, "answer mail")));
+/// ```
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BinaryArrayAddressableHeap<K, V> {
     inner: AddressableCore<K, V>,
 }
@@ -469,6 +486,20 @@ crate::impl_heap_via_addressable!(BinaryArrayAddressableHeap);
 ///
 /// The degree must be at least two. Larger degrees reduce insertion height but
 /// increase comparisons during removal.
+///
+/// ```
+/// use rheaps::AddressableHeap;
+/// use rheaps::array::DaryArrayAddressableHeap;
+///
+/// let mut heap = DaryArrayAddressableHeap::new(4).unwrap();
+/// let task = heap.insert(10, "compile report");
+/// heap.insert(5, "answer mail");
+///
+/// assert_eq!(heap.degree(), 4);
+/// assert_eq!(heap.delete(task), Ok((10, "compile report")));
+/// assert_eq!(heap.pop(), Some((5, "answer mail")));
+/// ```
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct DaryArrayAddressableHeap<K, V> {
     inner: AddressableCore<K, V>,
     degree: usize,

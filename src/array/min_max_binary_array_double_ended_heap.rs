@@ -9,7 +9,21 @@ const DEFAULT_HEAP_CAPACITY: usize = 16;
 /// Values on alternating tree levels are ordered as minima and maxima,
 /// respectively. This gives `O(1)` access to both extrema and `O(log n)`
 /// insertion and removal.
+///
+/// ```
+/// use rheaps::{DoubleEndedHeap, Heap};
+/// use rheaps::array::MinMaxBinaryArrayDoubleEndedHeap;
+///
+/// let mut heap = MinMaxBinaryArrayDoubleEndedHeap::new();
+/// heap.push(4);
+/// heap.push(1);
+/// heap.push(3);
+///
+/// assert_eq!(heap.peek(), Some(&1));
+/// assert_eq!(heap.peek_max(), Some(&4));
+/// ```
 #[derive(Clone, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct MinMaxBinaryArrayDoubleEndedHeap<T> {
     values: Vec<T>,
 }

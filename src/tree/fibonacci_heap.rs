@@ -11,6 +11,20 @@ use super::core::{NodeRef, TreeCore, TreeHandle};
 /// Insertions, melds, and key decreases are amortized `O(1)`. Removing a
 /// minimum or deleting an entry is amortized `O(log n)`. Nodes are kept in a
 /// forest of heap-ordered trees; removal consolidates roots of equal degree.
+///
+/// ```
+/// use rheaps::tree::FibonacciHeap;
+///
+/// let mut heap = FibonacciHeap::new();
+/// heap.push(4);
+/// heap.push(1);
+/// heap.push(3);
+///
+/// assert_eq!(heap.peek(), Some(&1));
+/// assert_eq!(heap.pop(), Some(1));
+/// assert_eq!(heap.pop(), Some(3));
+/// ```
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct FibonacciHeap<K, V = ()> {
     core: TreeCore<K, V>,
     roots: Vec<NodeRef>,

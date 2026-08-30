@@ -10,6 +10,7 @@ static NEXT_DOMAIN_ID: AtomicU64 = AtomicU64::new(1);
 
 /// An opaque handle for an entry in an addressable tree heap.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct TreeHandle {
     pub(crate) domain: u64,
     pub(crate) slot: usize,
@@ -17,11 +18,13 @@ pub struct TreeHandle {
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub(crate) struct NodeRef {
     domain: u64,
     slot: usize,
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub(crate) struct Node<K, V> {
     pub(crate) key: K,
     pub(crate) value: V,
@@ -32,11 +35,13 @@ pub(crate) struct Node<K, V> {
     pub(crate) marked: bool,
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 struct Slot<K, V> {
     node: Option<Node<K, V>>,
     generation: u64,
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 struct Arena<K, V> {
     slots: Vec<Slot<K, V>>,
     free_slots: Vec<usize>,
@@ -88,6 +93,7 @@ impl<K, V> Arena<K, V> {
 /// Every heap that has contributed nodes retains a small arena in the receiver.
 /// This permits a donor's handles to keep their identity after a meld without
 /// moving nodes or weakening checked handle validation.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub(crate) struct TreeCore<K, V> {
     pub(crate) root: Option<NodeRef>,
     pub(crate) len: usize,

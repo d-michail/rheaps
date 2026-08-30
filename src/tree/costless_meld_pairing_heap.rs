@@ -12,6 +12,20 @@ use super::core::{NodeRef, TreeCore, TreeHandle};
 /// immediately linked into the main pairing tree. The pool has a cached
 /// minimum and is periodically consolidated at a logarithmic-size threshold,
 /// retaining the deferred-work design of costless-meld pairing heaps.
+///
+/// ```
+/// use rheaps::tree::CostlessMeldPairingHeap;
+///
+/// let mut heap = CostlessMeldPairingHeap::new();
+/// heap.push(4);
+/// heap.push(1);
+/// heap.push(3);
+///
+/// assert_eq!(heap.peek(), Some(&1));
+/// assert_eq!(heap.pop(), Some(1));
+/// assert_eq!(heap.pop(), Some(3));
+/// ```
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct CostlessMeldPairingHeap<K, V = ()> {
     core: TreeCore<K, V>,
     decrease_pool: Vec<NodeRef>,

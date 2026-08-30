@@ -296,3 +296,20 @@ fn hollow_heap_melds_move_handle_domains_and_consume_donors() {
     assert_eq!(chain_a.pop_entry(), Some((-3, 29)));
     assert_eq!(chain_a.key(carried), Err(InvalidHandle::Stale));
 }
+
+#[cfg(feature = "serde")]
+#[test]
+fn hollow_heap_round_trips_through_serde_json() {
+    let mut heap = HollowHeap::<i32, String>::new();
+    let task = heap.insert(10, "compile report".to_owned());
+    heap.insert(5, "answer mail".to_owned());
+
+    let json = serde_json::to_string(&heap).unwrap();
+    let mut restored: HollowHeap<i32, String> = serde_json::from_str(&json).unwrap();
+
+    assert_eq!(restored.key(task), Ok(&10));
+    assert_eq!(restored.decrease_key(task, 1), Ok(()));
+    assert_eq!(restored.peek_entry().map(|(_, key, _)| *key), Some(1));
+    assert_eq!(restored.delete(task), Ok((1, "compile report".to_owned())));
+    assert_eq!(restored.pop_entry(), Some((5, "answer mail".to_owned())));
+}

@@ -11,6 +11,20 @@ use super::core::{NodeRef, TreeCore, TreeHandle};
 /// Unlike a classic Fibonacci heap, this implementation maintains one
 /// heap-ordered root tree. Root removal promotes and rank-consolidates its
 /// children; a decreased node is cut and linked directly with that root.
+///
+/// ```
+/// use rheaps::tree::SimpleFibonacciHeap;
+///
+/// let mut heap = SimpleFibonacciHeap::new();
+/// heap.push(4);
+/// heap.push(1);
+/// heap.push(3);
+///
+/// assert_eq!(heap.peek(), Some(&1));
+/// assert_eq!(heap.pop(), Some(1));
+/// assert_eq!(heap.pop(), Some(3));
+/// ```
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SimpleFibonacciHeap<K, V = ()> {
     core: TreeCore<K, V>,
 }

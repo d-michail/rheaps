@@ -74,6 +74,7 @@ const TARGET_SIZE: [u64; 63] = [
 
 /// An opaque handle for an entry in a binary-tree soft heap.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SoftHandle {
     pub(crate) domain: u64,
     pub(crate) slot: usize,
@@ -82,6 +83,7 @@ pub struct SoftHandle {
 
 /// An invalid soft-heap error rate.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum SoftHeapError {
     /// The error rate was zero or negative.
     NonPositiveErrorRate,
@@ -102,6 +104,7 @@ impl std::error::Error for SoftHeapError {}
 
 /// An error returned when binary-tree soft heaps cannot be melded.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum SoftMeldError {
     /// The heaps have incompatible error-rate rank limits.
     IncompatibleErrorRate,
@@ -120,17 +123,20 @@ impl fmt::Display for SoftMeldError {
 impl std::error::Error for SoftMeldError {}
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub(crate) struct SoftItemRef {
     domain: u64,
     slot: usize,
 }
 
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub(crate) struct SoftNodeRef {
     domain: u64,
     slot: usize,
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub(crate) struct Item<K, V> {
     key: K,
     value: V,
@@ -145,11 +151,13 @@ impl<K, V> Item<K, V> {
     }
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 struct ItemSlot<K, V> {
     item: Option<Item<K, V>>,
     generation: u64,
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 struct ItemArena<K, V> {
     slots: Vec<ItemSlot<K, V>>,
     free_slots: Vec<usize>,
@@ -196,6 +204,7 @@ impl<K, V> ItemArena<K, V> {
     }
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 struct Node<K> {
     rank: usize,
     parent: Option<SoftNodeRef>,
@@ -207,6 +216,7 @@ struct Node<K> {
     c_key: Option<K>,
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 struct NodeArena<K> {
     nodes: Vec<Node<K>>,
 }
@@ -218,6 +228,7 @@ impl<K> NodeArena<K> {
 }
 
 /// Shared Kaplan-Zwick binary-tree soft-heap storage.
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub(crate) struct SoftHeapCore<K, V> {
     rank_limit: usize,
     roots: Vec<SoftNodeRef>,

@@ -4,6 +4,7 @@ const DEFAULT_HEAP_CAPACITY: usize = 16;
 const INSERTION_BUFFER_CAPACITY: usize = 34;
 
 #[derive(Clone, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 struct WeakHeapCore<T> {
     values: Vec<T>,
     reverse: Vec<bool>,
@@ -123,7 +124,20 @@ impl<T: Ord> WeakHeapCore<T> {
 /// A weak heap stores one reverse bit per position and uses at most one
 /// comparison per level during insertion. `push` and `pop` are `O(log n)`;
 /// construction from a vector is `O(n)`.
+///
+/// ```
+/// use rheaps::Heap;
+/// use rheaps::array::BinaryArrayWeakHeap;
+///
+/// let mut heap = BinaryArrayWeakHeap::new();
+/// heap.push(4);
+/// heap.push(1);
+/// heap.push(3);
+///
+/// assert_eq!(heap.pop(), Some(1));
+/// ```
 #[derive(Clone, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BinaryArrayWeakHeap<T> {
     inner: WeakHeapCore<T>,
 }
@@ -233,7 +247,20 @@ impl<T: Ord> Heap<T> for BinaryArrayWeakHeap<T> {
 /// Insertions first enter a small buffer, giving amortized `O(1)` insertion
 /// work. The buffer's minimum is tracked, so [`Heap::peek`] remains `O(1)`.
 /// A full buffer is integrated using the weak-heap bulk insertion algorithm.
+///
+/// ```
+/// use rheaps::Heap;
+/// use rheaps::array::BinaryArrayBulkInsertWeakHeap;
+///
+/// let mut heap = BinaryArrayBulkInsertWeakHeap::new();
+/// heap.push(4);
+/// heap.push(1);
+/// heap.push(3);
+///
+/// assert_eq!(heap.pop(), Some(1));
+/// ```
 #[derive(Clone, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BinaryArrayBulkInsertWeakHeap<T> {
     inner: WeakHeapCore<T>,
     insertion_buffer: Vec<T>,

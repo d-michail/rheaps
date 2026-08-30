@@ -5,17 +5,20 @@ use crate::{AddressableHeap, DecreaseKeyHeap};
 
 use super::core::{TreeHandle, next_domain_id};
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 struct Entry<K, V> {
     key: K,
     value: V,
     position: usize,
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 struct EntrySlot<K, V> {
     entry: Option<Entry<K, V>>,
     generation: u64,
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 struct Position {
     parent: Option<usize>,
     children: [Option<usize>; 2],
@@ -27,6 +30,22 @@ struct Position {
 /// Insert, minimum removal, deletion, and key decreases are `O(log n)`;
 /// looking up the minimum is `O(1)`. Nodes form an explicit binary tree while
 /// entries are moved between nodes, preserving the identity of their handles.
+///
+/// ```
+/// use rheaps::AddressableHeap;
+/// use rheaps::tree::BinaryTreeAddressableHeap;
+///
+/// let mut heap = BinaryTreeAddressableHeap::new();
+/// let task = heap.insert(4, "clean up");
+/// heap.insert(1, "reply to mail");
+///
+/// heap.decrease_key(task, 0).unwrap();
+/// assert_eq!(
+///     heap.peek().map(|(_, key, value)| (*key, *value)),
+///     Some((0, "clean up")),
+/// );
+/// ```
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BinaryTreeAddressableHeap<K, V = ()> {
     entries: Vec<EntrySlot<K, V>>,
     free_entries: Vec<usize>,

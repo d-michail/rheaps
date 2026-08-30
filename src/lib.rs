@@ -64,6 +64,11 @@
 //! derived from [JHeaps](https://github.com/d-michail/jheaps). The API
 //! follows Rust's ownership, trait, and error-handling conventions rather
 //! than reproducing the Java API literally.
+//!
+//! # Optional features
+//!
+//! - `serde` - implements `Serialize`/`Deserialize` for every heap, handle,
+//!   and key type in the crate.
 
 pub mod array;
 pub mod dag;

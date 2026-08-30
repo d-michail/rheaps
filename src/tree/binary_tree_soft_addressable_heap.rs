@@ -10,6 +10,18 @@ use super::soft_heap_core::{SoftHandle, SoftHeapCore, SoftHeapError, SoftMeldErr
 /// implement [`crate::DecreaseKeyHeap`] because its corruption-bounded
 /// structure does not track precise per-entry positions. Values, deletion,
 /// and melds retain checked opaque handles.
+///
+/// ```
+/// use rheaps::tree::BinaryTreeSoftAddressableHeap;
+///
+/// let mut heap = BinaryTreeSoftAddressableHeap::new(0.1).unwrap();
+/// let handle = heap.insert(4, "clean up");
+/// heap.insert(1, "reply to mail");
+///
+/// assert_eq!(heap.len(), 2);
+/// assert_eq!(heap.value(handle), Ok(&"clean up"));
+/// ```
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BinaryTreeSoftAddressableHeap<K, V = ()> {
     core: SoftHeapCore<K, V>,
 }

@@ -11,6 +11,20 @@ use super::core::{NodeRef, TreeCore, TreeHandle};
 /// Insert, minimum removal, deletion, and melding are amortized `O(log n)`;
 /// finding the minimum is `O(1)`. Key decreases use delete-and-reinsert and
 /// therefore have amortized `O(log n)` cost.
+///
+/// ```
+/// use rheaps::tree::SkewHeap;
+///
+/// let mut heap = SkewHeap::new();
+/// heap.push(4);
+/// heap.push(1);
+/// heap.push(3);
+///
+/// assert_eq!(heap.peek(), Some(&1));
+/// assert_eq!(heap.pop(), Some(1));
+/// assert_eq!(heap.pop(), Some(3));
+/// ```
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct SkewHeap<K, V = ()> {
     core: TreeCore<K, V>,
 }

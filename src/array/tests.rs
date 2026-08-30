@@ -625,40 +625,100 @@ where
 }
 
 #[test]
-fn jheaps_min_heap_behavior_all_array_implementations() {
+fn binary_array_heap_follows_min_heap_behavior() {
     exercise_min_heap(|| BinaryArrayHeap::with_capacity(0));
+}
+
+#[test]
+fn dary_array_heap_degree_2_follows_min_heap_behavior() {
     exercise_min_heap(|| DaryArrayHeap::with_capacity(2, 0).unwrap());
+}
+
+#[test]
+fn dary_array_heap_degree_3_follows_min_heap_behavior() {
     exercise_min_heap(|| DaryArrayHeap::with_capacity(3, 0).unwrap());
+}
+
+#[test]
+fn dary_array_heap_degree_4_follows_min_heap_behavior() {
     exercise_min_heap(|| DaryArrayHeap::with_capacity(4, 0).unwrap());
+}
+
+#[test]
+fn dary_array_heap_degree_5_follows_min_heap_behavior() {
     exercise_min_heap(|| DaryArrayHeap::with_capacity(5, 0).unwrap());
+}
+
+#[test]
+fn binary_array_weak_heap_follows_min_heap_behavior() {
     exercise_min_heap(|| BinaryArrayWeakHeap::with_capacity(0));
+}
+
+#[test]
+fn binary_array_bulk_insert_weak_heap_follows_min_heap_behavior() {
     exercise_min_heap(|| BinaryArrayBulkInsertWeakHeap::with_capacity(0));
+}
+
+#[test]
+fn min_max_binary_array_double_ended_heap_follows_min_heap_behavior() {
     exercise_min_heap(|| MinMaxBinaryArrayDoubleEndedHeap::with_capacity(0));
 }
 
 #[test]
-fn addressable_array_heaps_gain_value_less_heap_trait() {
+fn binary_array_addressable_heap_gains_value_less_heap_trait() {
     exercise_min_heap(BinaryArrayAddressableHeap::<i32, ()>::new);
+}
+
+#[test]
+fn dary_array_addressable_heap_gains_value_less_heap_trait() {
     exercise_min_heap(|| DaryArrayAddressableHeap::<i32, ()>::new(4).unwrap());
 }
 
 #[test]
-fn array_heaps_integrate_with_collection_traits() {
+fn binary_array_heap_integrates_with_collection_traits() {
     assert_heap_collection_traits::<BinaryArrayHeap<i32>>();
+}
+
+#[test]
+fn dary_array_heap_integrates_with_collection_traits() {
     assert_heap_collection_traits::<DaryArrayHeap<i32>>();
-    assert_heap_collection_traits::<BinaryArrayWeakHeap<i32>>();
-    assert_heap_collection_traits::<BinaryArrayBulkInsertWeakHeap<i32>>();
-    assert_heap_collection_traits::<MinMaxBinaryArrayDoubleEndedHeap<i32>>();
-    assert_addressable_collection_traits::<BinaryArrayAddressableHeap<i32, &'static str>>();
-    assert_addressable_collection_traits::<DaryArrayAddressableHeap<i32, &'static str>>();
 
     let dary = [3, 1, 2].into_iter().collect::<DaryArrayHeap<_>>();
     assert_eq!(dary.degree(), 2);
+}
+
+#[test]
+fn binary_array_weak_heap_integrates_with_collection_traits() {
+    assert_heap_collection_traits::<BinaryArrayWeakHeap<i32>>();
+}
+
+#[test]
+fn binary_array_bulk_insert_weak_heap_integrates_with_collection_traits() {
+    assert_heap_collection_traits::<BinaryArrayBulkInsertWeakHeap<i32>>();
+}
+
+#[test]
+fn min_max_binary_array_double_ended_heap_integrates_with_collection_traits() {
+    assert_heap_collection_traits::<MinMaxBinaryArrayDoubleEndedHeap<i32>>();
+}
+
+#[test]
+fn binary_array_addressable_heap_integrates_with_collection_traits() {
+    assert_addressable_collection_traits::<BinaryArrayAddressableHeap<i32, &'static str>>();
+}
+
+#[test]
+fn dary_array_addressable_heap_integrates_with_collection_traits() {
+    assert_addressable_collection_traits::<DaryArrayAddressableHeap<i32, &'static str>>();
+
     let addressable = [(3, 3), (1, 1)]
         .into_iter()
         .collect::<DaryArrayAddressableHeap<_, _>>();
     assert_eq!(addressable.degree(), 2);
+}
 
+#[test]
+fn binary_array_integer_value_heap_integrates_with_collection_traits() {
     let mut values = [(3, "three"), (1, "one")]
         .into_iter()
         .collect::<BinaryArrayIntegerValueHeap<_>>();
@@ -670,34 +730,49 @@ fn array_heaps_integrate_with_collection_traits() {
 }
 
 #[test]
-fn array_heaps_iterate_in_internal_heap_order() {
+fn binary_array_heap_iterates_in_internal_heap_order() {
     let values = vec![5, 3, 8, 1, 9, 2, 7];
-
-    let heap = BinaryArrayHeap::from_vec(values.clone());
+    let heap = BinaryArrayHeap::from_vec(values);
     let expected = heap.clone().into_vec();
     assert_eq!(heap.iter().copied().collect::<Vec<_>>(), expected);
     assert_eq!((&heap).into_iter().copied().collect::<Vec<_>>(), expected);
     assert_eq!(heap.into_iter().collect::<Vec<_>>(), expected);
+}
 
-    let heap = DaryArrayHeap::from_vec(3, values.clone()).unwrap();
+#[test]
+fn dary_array_heap_iterates_in_internal_heap_order() {
+    let values = vec![5, 3, 8, 1, 9, 2, 7];
+    let heap = DaryArrayHeap::from_vec(3, values).unwrap();
     let expected = heap.clone().into_vec();
     assert_eq!(heap.iter().copied().collect::<Vec<_>>(), expected);
     assert_eq!((&heap).into_iter().copied().collect::<Vec<_>>(), expected);
     assert_eq!(heap.into_iter().collect::<Vec<_>>(), expected);
+}
 
-    let heap = BinaryArrayWeakHeap::from_vec(values.clone());
+#[test]
+fn binary_array_weak_heap_iterates_in_internal_heap_order() {
+    let values = vec![5, 3, 8, 1, 9, 2, 7];
+    let heap = BinaryArrayWeakHeap::from_vec(values);
     let expected = heap.clone().into_vec();
     assert_eq!(heap.iter().copied().collect::<Vec<_>>(), expected);
     assert_eq!((&heap).into_iter().copied().collect::<Vec<_>>(), expected);
     assert_eq!(heap.into_iter().collect::<Vec<_>>(), expected);
+}
 
-    let heap = MinMaxBinaryArrayDoubleEndedHeap::from_vec(values.clone());
+#[test]
+fn min_max_binary_array_double_ended_heap_iterates_in_internal_heap_order() {
+    let values = vec![5, 3, 8, 1, 9, 2, 7];
+    let heap = MinMaxBinaryArrayDoubleEndedHeap::from_vec(values);
     let expected = heap.clone().into_vec();
     assert_eq!(heap.iter().copied().collect::<Vec<_>>(), expected);
     assert_eq!((&heap).into_iter().copied().collect::<Vec<_>>(), expected);
     assert_eq!(heap.into_iter().collect::<Vec<_>>(), expected);
+}
 
-    let mut heap = BinaryArrayBulkInsertWeakHeap::from_vec(values.clone());
+#[test]
+fn binary_array_bulk_insert_weak_heap_iterates_in_internal_heap_order() {
+    let values = vec![5, 3, 8, 1, 9, 2, 7];
+    let mut heap = BinaryArrayBulkInsertWeakHeap::from_vec(values);
     heap.push(4);
     heap.push(6);
     let expected: HashSet<_> = heap.iter().copied().collect();
@@ -706,7 +781,10 @@ fn array_heaps_iterate_in_internal_heap_order() {
     assert_eq!(borrowed, expected);
     let owned: HashSet<_> = heap.into_iter().collect();
     assert_eq!(owned, expected);
+}
 
+#[test]
+fn binary_array_integer_value_heap_iterates_in_internal_heap_order() {
     let entries = vec![(3, "three"), (1, "one"), (2, "two")];
     let heap = BinaryArrayIntegerValueHeap::from_vec(entries);
     let expected = heap.clone().into_vec();
@@ -725,35 +803,72 @@ fn array_heaps_iterate_in_internal_heap_order() {
 }
 
 #[test]
-fn alternate_ord_keys_preserve_array_heap_ordering() {
+fn binary_array_heap_preserves_alternate_ord_key_ordering() {
     exercise_reverse_min_heap(BinaryArrayHeap::new);
+
+    let values = (0..STRESS_SIZE).map(ReverseKey).collect::<Vec<_>>();
+    let expected = (0..STRESS_SIZE).rev().collect::<Vec<_>>();
+    assert_eq!(drain_reverse(BinaryArrayHeap::from_vec(values)), expected);
+}
+
+#[test]
+fn dary_array_heap_degree_2_preserves_alternate_ord_key_ordering() {
     exercise_reverse_min_heap(|| DaryArrayHeap::new(2).unwrap());
+}
+
+#[test]
+fn dary_array_heap_degree_3_preserves_alternate_ord_key_ordering() {
     exercise_reverse_min_heap(|| DaryArrayHeap::new(3).unwrap());
+
+    let values = (0..STRESS_SIZE).map(ReverseKey).collect::<Vec<_>>();
+    let expected = (0..STRESS_SIZE).rev().collect::<Vec<_>>();
+    assert_eq!(
+        drain_reverse(DaryArrayHeap::from_vec(3, values).unwrap()),
+        expected
+    );
+}
+
+#[test]
+fn dary_array_heap_degree_4_preserves_alternate_ord_key_ordering() {
     exercise_reverse_min_heap(|| DaryArrayHeap::new(4).unwrap());
+}
+
+#[test]
+fn dary_array_heap_degree_5_preserves_alternate_ord_key_ordering() {
     exercise_reverse_min_heap(|| DaryArrayHeap::new(5).unwrap());
+}
+
+#[test]
+fn binary_array_weak_heap_preserves_alternate_ord_key_ordering() {
     exercise_reverse_min_heap(BinaryArrayWeakHeap::new);
+
+    let values = (0..STRESS_SIZE).map(ReverseKey).collect::<Vec<_>>();
+    let expected = (0..STRESS_SIZE).rev().collect::<Vec<_>>();
+    assert_eq!(
+        drain_reverse(BinaryArrayWeakHeap::from_vec(values)),
+        expected
+    );
+}
+
+#[test]
+fn binary_array_bulk_insert_weak_heap_preserves_alternate_ord_key_ordering() {
     exercise_reverse_min_heap(BinaryArrayBulkInsertWeakHeap::new);
+
+    let values = (0..STRESS_SIZE).map(ReverseKey).collect::<Vec<_>>();
+    let expected = (0..STRESS_SIZE).rev().collect::<Vec<_>>();
+    assert_eq!(
+        drain_reverse(BinaryArrayBulkInsertWeakHeap::from_vec(values)),
+        expected
+    );
+}
+
+#[test]
+fn min_max_binary_array_double_ended_heap_preserves_alternate_ord_key_ordering() {
     exercise_reverse_min_heap(MinMaxBinaryArrayDoubleEndedHeap::new);
     exercise_reverse_double_ended_heap(MinMaxBinaryArrayDoubleEndedHeap::new);
 
     let values = (0..STRESS_SIZE).map(ReverseKey).collect::<Vec<_>>();
     let expected = (0..STRESS_SIZE).rev().collect::<Vec<_>>();
-    assert_eq!(
-        drain_reverse(BinaryArrayHeap::from_vec(values.clone())),
-        expected
-    );
-    assert_eq!(
-        drain_reverse(DaryArrayHeap::from_vec(3, values.clone()).unwrap()),
-        expected
-    );
-    assert_eq!(
-        drain_reverse(BinaryArrayWeakHeap::from_vec(values.clone())),
-        expected
-    );
-    assert_eq!(
-        drain_reverse(BinaryArrayBulkInsertWeakHeap::from_vec(values.clone())),
-        expected
-    );
     assert_eq!(
         drain_reverse(MinMaxBinaryArrayDoubleEndedHeap::from_vec(values)),
         expected
@@ -774,26 +889,46 @@ fn jheaps_double_ended_behavior_and_random_properties() {
 }
 
 #[test]
-fn jheaps_addressable_behavior_binary_and_dary_degrees() {
+fn binary_array_addressable_heap_follows_addressable_behavior() {
     exercise_addressable_heap(|| BinaryArrayAddressableHeap::with_capacity(0));
+}
+
+#[test]
+fn dary_array_addressable_heap_degree_3_follows_addressable_behavior() {
     exercise_addressable_heap(|| DaryArrayAddressableHeap::with_capacity(3, 0).unwrap());
+}
+
+#[test]
+fn dary_array_addressable_heap_degree_4_follows_addressable_behavior() {
     exercise_addressable_heap(|| DaryArrayAddressableHeap::with_capacity(4, 0).unwrap());
 }
 
 #[test]
-fn alternate_ord_keys_preserve_addressable_array_heap_ordering() {
+fn binary_array_addressable_heap_preserves_alternate_ord_key_ordering() {
     exercise_reverse_addressable_heap(BinaryArrayAddressableHeap::new);
+
+    let entries = (0..STRESS_SIZE)
+        .map(|key| (ReverseKey(key), key as usize))
+        .collect::<Vec<_>>();
+    let mut binary = BinaryArrayAddressableHeap::from_vec(entries);
+    assert_eq!(
+        binary.pop(),
+        Some((ReverseKey(STRESS_SIZE - 1), (STRESS_SIZE - 1) as usize))
+    );
+}
+
+#[test]
+fn dary_array_addressable_heap_degree_3_preserves_alternate_ord_key_ordering() {
     exercise_reverse_addressable_heap(|| DaryArrayAddressableHeap::new(3).unwrap());
+}
+
+#[test]
+fn dary_array_addressable_heap_degree_4_preserves_alternate_ord_key_ordering() {
     exercise_reverse_addressable_heap(|| DaryArrayAddressableHeap::new(4).unwrap());
 
     let entries = (0..STRESS_SIZE)
         .map(|key| (ReverseKey(key), key as usize))
         .collect::<Vec<_>>();
-    let mut binary = BinaryArrayAddressableHeap::from_vec(entries.clone());
-    assert_eq!(
-        binary.pop(),
-        Some((ReverseKey(STRESS_SIZE - 1), (STRESS_SIZE - 1) as usize))
-    );
     let mut dary = DaryArrayAddressableHeap::from_vec(4, entries).unwrap();
     assert_eq!(
         dary.pop(),
@@ -807,72 +942,169 @@ fn jheaps_integer_value_heap_behavior_and_properties() {
 }
 
 #[test]
-fn jheaps_heapify_equivalence_for_all_array_heaps() {
+fn binary_array_heap_heapify_matches_sorted_order() {
     let mut random = JavaRandom::new(1);
     let values = (0..STRESS_SIZE)
         .map(|_| random.next_i32())
         .collect::<Vec<_>>();
     let mut expected = values.clone();
     expected.sort_unstable();
+    assert_eq!(drain(BinaryArrayHeap::from_vec(values)), expected);
+}
 
-    assert_eq!(drain(BinaryArrayHeap::from_vec(values.clone())), expected);
+#[test]
+fn dary_array_heap_degree_2_heapify_matches_sorted_order() {
+    let mut random = JavaRandom::new(1);
+    let values = (0..STRESS_SIZE)
+        .map(|_| random.next_i32())
+        .collect::<Vec<_>>();
+    let mut expected = values.clone();
+    expected.sort_unstable();
+    assert_eq!(drain(DaryArrayHeap::from_vec(2, values).unwrap()), expected);
+}
+
+#[test]
+fn dary_array_heap_degree_3_heapify_matches_sorted_order() {
+    let mut random = JavaRandom::new(1);
+    let values = (0..STRESS_SIZE)
+        .map(|_| random.next_i32())
+        .collect::<Vec<_>>();
+    let mut expected = values.clone();
+    expected.sort_unstable();
+    assert_eq!(drain(DaryArrayHeap::from_vec(3, values).unwrap()), expected);
+}
+
+#[test]
+fn dary_array_heap_degree_4_heapify_matches_sorted_order() {
+    let mut random = JavaRandom::new(1);
+    let values = (0..STRESS_SIZE)
+        .map(|_| random.next_i32())
+        .collect::<Vec<_>>();
+    let mut expected = values.clone();
+    expected.sort_unstable();
+    assert_eq!(drain(DaryArrayHeap::from_vec(4, values).unwrap()), expected);
+}
+
+#[test]
+fn dary_array_heap_degree_5_heapify_matches_sorted_order() {
+    let mut random = JavaRandom::new(1);
+    let values = (0..STRESS_SIZE)
+        .map(|_| random.next_i32())
+        .collect::<Vec<_>>();
+    let mut expected = values.clone();
+    expected.sort_unstable();
+    assert_eq!(drain(DaryArrayHeap::from_vec(5, values).unwrap()), expected);
+}
+
+#[test]
+fn binary_array_weak_heap_heapify_matches_sorted_order() {
+    let mut random = JavaRandom::new(1);
+    let values = (0..STRESS_SIZE)
+        .map(|_| random.next_i32())
+        .collect::<Vec<_>>();
+    let mut expected = values.clone();
+    expected.sort_unstable();
+    assert_eq!(drain(BinaryArrayWeakHeap::from_vec(values)), expected);
+}
+
+#[test]
+fn binary_array_bulk_insert_weak_heap_heapify_matches_sorted_order() {
+    let mut random = JavaRandom::new(1);
+    let values = (0..STRESS_SIZE)
+        .map(|_| random.next_i32())
+        .collect::<Vec<_>>();
+    let mut expected = values.clone();
+    expected.sort_unstable();
     assert_eq!(
-        drain(DaryArrayHeap::from_vec(2, values.clone()).unwrap()),
-        expected
-    );
-    assert_eq!(
-        drain(DaryArrayHeap::from_vec(3, values.clone()).unwrap()),
-        expected
-    );
-    assert_eq!(
-        drain(DaryArrayHeap::from_vec(4, values.clone()).unwrap()),
-        expected
-    );
-    assert_eq!(
-        drain(DaryArrayHeap::from_vec(5, values.clone()).unwrap()),
-        expected
-    );
-    assert_eq!(
-        drain(BinaryArrayWeakHeap::from_vec(values.clone())),
-        expected
-    );
-    assert_eq!(
-        drain(BinaryArrayBulkInsertWeakHeap::from_vec(values.clone())),
-        expected
-    );
-    assert_eq!(
-        drain(MinMaxBinaryArrayDoubleEndedHeap::from_vec(values.clone())),
+        drain(BinaryArrayBulkInsertWeakHeap::from_vec(values)),
         expected
     );
 }
 
 #[test]
-fn jheaps_heapify_empty_inputs_can_be_reused() {
-    assert_constructed_empty(BinaryArrayHeap::from_vec(Vec::new()));
-    assert_constructed_empty(DaryArrayHeap::from_vec(2, Vec::new()).unwrap());
-    assert_constructed_empty(DaryArrayHeap::from_vec(3, Vec::new()).unwrap());
-    assert_constructed_empty(DaryArrayHeap::from_vec(4, Vec::new()).unwrap());
-    assert_constructed_empty(DaryArrayHeap::from_vec(5, Vec::new()).unwrap());
-    assert_constructed_empty(BinaryArrayWeakHeap::from_vec(Vec::new()));
-    assert_constructed_empty(BinaryArrayBulkInsertWeakHeap::from_vec(Vec::new()));
-    assert_constructed_empty(MinMaxBinaryArrayDoubleEndedHeap::from_vec(Vec::new()));
+fn min_max_binary_array_double_ended_heap_heapify_matches_sorted_order() {
+    let mut random = JavaRandom::new(1);
+    let values = (0..STRESS_SIZE)
+        .map(|_| random.next_i32())
+        .collect::<Vec<_>>();
+    let mut expected = values.clone();
+    expected.sort_unstable();
+    assert_eq!(
+        drain(MinMaxBinaryArrayDoubleEndedHeap::from_vec(values)),
+        expected
+    );
+}
 
+#[test]
+fn binary_array_heap_heapify_from_empty_is_reusable() {
+    assert_constructed_empty(BinaryArrayHeap::from_vec(Vec::new()));
+}
+
+#[test]
+fn dary_array_heap_degree_2_heapify_from_empty_is_reusable() {
+    assert_constructed_empty(DaryArrayHeap::from_vec(2, Vec::new()).unwrap());
+}
+
+#[test]
+fn dary_array_heap_degree_3_heapify_from_empty_is_reusable() {
+    assert_constructed_empty(DaryArrayHeap::from_vec(3, Vec::new()).unwrap());
+}
+
+#[test]
+fn dary_array_heap_degree_4_heapify_from_empty_is_reusable() {
+    assert_constructed_empty(DaryArrayHeap::from_vec(4, Vec::new()).unwrap());
+}
+
+#[test]
+fn dary_array_heap_degree_5_heapify_from_empty_is_reusable() {
+    assert_constructed_empty(DaryArrayHeap::from_vec(5, Vec::new()).unwrap());
+}
+
+#[test]
+fn binary_array_weak_heap_heapify_from_empty_is_reusable() {
+    assert_constructed_empty(BinaryArrayWeakHeap::from_vec(Vec::new()));
+}
+
+#[test]
+fn binary_array_bulk_insert_weak_heap_heapify_from_empty_is_reusable() {
+    assert_constructed_empty(BinaryArrayBulkInsertWeakHeap::from_vec(Vec::new()));
+}
+
+#[test]
+fn min_max_binary_array_double_ended_heap_heapify_from_empty_is_reusable() {
+    assert_constructed_empty(MinMaxBinaryArrayDoubleEndedHeap::from_vec(Vec::new()));
+}
+
+#[test]
+fn binary_array_addressable_heap_heapify_from_empty_is_reusable() {
     assert_empty_addressable_is_reusable(BinaryArrayAddressableHeap::<i32, i32>::from_vec(
         Vec::new(),
     ));
+}
+
+#[test]
+fn dary_array_addressable_heap_degree_3_heapify_from_empty_is_reusable() {
     assert_empty_addressable_is_reusable(
         DaryArrayAddressableHeap::<i32, i32>::from_vec(3, Vec::new()).unwrap(),
     );
+}
+
+#[test]
+fn dary_array_addressable_heap_degree_4_heapify_from_empty_is_reusable() {
     assert_empty_addressable_is_reusable(
         DaryArrayAddressableHeap::<i32, i32>::from_vec(4, Vec::new()).unwrap(),
     );
+}
+
+#[test]
+fn dary_array_addressable_heap_degree_5_heapify_from_empty_is_reusable() {
     assert_empty_addressable_is_reusable(
         DaryArrayAddressableHeap::<i32, i32>::from_vec(5, Vec::new()).unwrap(),
     );
 }
 
 #[test]
-fn jheaps_addressable_heapify_preserves_values_and_handles() {
+fn binary_array_addressable_heap_heapify_preserves_values_and_handles() {
     let mut random = JavaRandom::new(1);
     let entries = (0..STRESS_SIZE)
         .map(|_| {
@@ -880,23 +1112,13 @@ fn jheaps_addressable_heapify_preserves_values_and_handles() {
             (key, key)
         })
         .collect::<Vec<_>>();
-
-    assert_addressable_construction(BinaryArrayAddressableHeap::from_vec(entries.clone()));
-    assert_addressable_construction(
-        DaryArrayAddressableHeap::from_vec(3, entries.clone()).unwrap(),
-    );
-    assert_addressable_construction(
-        DaryArrayAddressableHeap::from_vec(4, entries.clone()).unwrap(),
-    );
-    assert_addressable_construction(
-        DaryArrayAddressableHeap::from_vec(5, entries.clone()).unwrap(),
-    );
+    assert_addressable_construction(BinaryArrayAddressableHeap::from_vec(entries));
 
     let iterator_entries = (0..STRESS_SIZE)
         .rev()
         .map(|key| (key, key))
         .collect::<Vec<_>>();
-    let heap = BinaryArrayAddressableHeap::from_vec(iterator_entries.clone());
+    let heap = BinaryArrayAddressableHeap::from_vec(iterator_entries);
     let handles = {
         let mut iterator = heap.handles();
         let handles = iterator.by_ref().collect::<HashSet<_>>();
@@ -908,11 +1130,54 @@ fn jheaps_addressable_heapify_preserves_values_and_handles() {
         assert!(heap.key(handle).is_ok());
     }
     assert_eq!(heap.handles().count(), STRESS_SIZE as usize);
+}
 
-    assert_dary_handles_are_live(
-        DaryArrayAddressableHeap::from_vec(3, iterator_entries.clone()).unwrap(),
-    );
+#[test]
+fn dary_array_addressable_heap_degree_3_heapify_preserves_values_and_handles() {
+    let mut random = JavaRandom::new(1);
+    let entries = (0..STRESS_SIZE)
+        .map(|_| {
+            let key = random.next_i32();
+            (key, key)
+        })
+        .collect::<Vec<_>>();
+    assert_addressable_construction(DaryArrayAddressableHeap::from_vec(3, entries).unwrap());
+
+    let iterator_entries = (0..STRESS_SIZE)
+        .rev()
+        .map(|key| (key, key))
+        .collect::<Vec<_>>();
+    assert_dary_handles_are_live(DaryArrayAddressableHeap::from_vec(3, iterator_entries).unwrap());
+}
+
+#[test]
+fn dary_array_addressable_heap_degree_4_heapify_preserves_values_and_handles() {
+    let mut random = JavaRandom::new(1);
+    let entries = (0..STRESS_SIZE)
+        .map(|_| {
+            let key = random.next_i32();
+            (key, key)
+        })
+        .collect::<Vec<_>>();
+    assert_addressable_construction(DaryArrayAddressableHeap::from_vec(4, entries).unwrap());
+
+    let iterator_entries = (0..STRESS_SIZE)
+        .rev()
+        .map(|key| (key, key))
+        .collect::<Vec<_>>();
     assert_dary_handles_are_live(DaryArrayAddressableHeap::from_vec(4, iterator_entries).unwrap());
+}
+
+#[test]
+fn dary_array_addressable_heap_degree_5_heapify_preserves_values_and_handles() {
+    let mut random = JavaRandom::new(1);
+    let entries = (0..STRESS_SIZE)
+        .map(|_| {
+            let key = random.next_i32();
+            (key, key)
+        })
+        .collect::<Vec<_>>();
+    assert_addressable_construction(DaryArrayAddressableHeap::from_vec(5, entries).unwrap());
 }
 
 #[test]
@@ -980,5 +1245,80 @@ fn jheaps_degree_validation_is_preserved() {
                 .degree(),
             degree
         );
+    }
+}
+
+#[cfg(feature = "serde")]
+mod serde_roundtrip {
+    use super::{
+        BinaryArrayAddressableHeap, BinaryArrayHeap, BinaryArrayIntegerValueHeap, DaryArrayHeap,
+    };
+    use crate::{AddressableHeap, Heap};
+
+    #[test]
+    fn binary_array_heap_round_trips_through_serde_json() {
+        let mut heap = BinaryArrayHeap::new();
+        heap.push(3);
+        heap.push(1);
+        heap.push(2);
+
+        let json = serde_json::to_string(&heap).unwrap();
+        let mut restored: BinaryArrayHeap<i32> = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(restored.pop(), Some(1));
+        assert_eq!(restored.pop(), Some(2));
+        assert_eq!(restored.pop(), Some(3));
+        assert_eq!(restored.pop(), None);
+    }
+
+    #[test]
+    fn dary_array_heap_round_trips_through_serde_json() {
+        let mut heap = DaryArrayHeap::new(3).unwrap();
+        heap.push(7);
+        heap.push(4);
+        heap.push(9);
+
+        let json = serde_json::to_string(&heap).unwrap();
+        let restored: DaryArrayHeap<i32> = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(restored.degree(), 3);
+        assert_eq!(
+            core::iter::from_fn({
+                let mut heap = restored;
+                move || heap.pop()
+            })
+            .collect::<Vec<_>>(),
+            vec![4, 7, 9]
+        );
+    }
+
+    #[test]
+    fn binary_array_addressable_heap_round_trips_and_keeps_handles_usable() {
+        let mut heap = BinaryArrayAddressableHeap::new();
+        let task = heap.insert(10, "compile report");
+        heap.insert(5, "answer mail");
+
+        let json = serde_json::to_string(&heap).unwrap();
+        let mut restored: BinaryArrayAddressableHeap<i32, &str> =
+            serde_json::from_str(&json).unwrap();
+
+        assert_eq!(restored.key(task), Ok(&10));
+        assert_eq!(restored.delete(task), Ok((10, "compile report")));
+        assert_eq!(restored.pop(), Some((5, "answer mail")));
+    }
+
+    #[test]
+    fn binary_array_integer_value_heap_round_trips_through_serde_json() {
+        let mut heap = BinaryArrayIntegerValueHeap::new();
+        heap.insert(3, 30);
+        heap.insert(1, 10);
+        heap.insert(2, 20);
+
+        let json = serde_json::to_string(&heap).unwrap();
+        let mut restored: BinaryArrayIntegerValueHeap<i32> = serde_json::from_str(&json).unwrap();
+
+        assert_eq!(restored.pop(), Some((1, 10)));
+        assert_eq!(restored.pop(), Some((2, 20)));
+        assert_eq!(restored.pop(), Some((3, 30)));
     }
 }

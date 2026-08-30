@@ -11,6 +11,20 @@ use super::core::{NodeRef, TreeCore, TreeHandle};
 /// The heap stores a root list of ranked half-trees. Equal-ranked roots are
 /// linked when a minimum is removed, while a decrease cuts one half-tree and
 /// restores ranks on its former spine.
+///
+/// ```
+/// use rheaps::tree::RankPairingHeap;
+///
+/// let mut heap = RankPairingHeap::new();
+/// heap.push(4);
+/// heap.push(1);
+/// heap.push(3);
+///
+/// assert_eq!(heap.peek(), Some(&1));
+/// assert_eq!(heap.pop(), Some(1));
+/// assert_eq!(heap.pop(), Some(3));
+/// ```
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct RankPairingHeap<K, V = ()> {
     core: TreeCore<K, V>,
     roots: Vec<NodeRef>,

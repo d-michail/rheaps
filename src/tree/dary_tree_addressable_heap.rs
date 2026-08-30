@@ -6,17 +6,20 @@ use crate::{AddressableHeap, DecreaseKeyHeap};
 
 use super::core::{TreeHandle, next_domain_id};
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 struct Entry<K, V> {
     key: K,
     value: V,
     position: usize,
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 struct EntrySlot<K, V> {
     entry: Option<Entry<K, V>>,
     generation: u64,
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 struct Position {
     parent: Option<usize>,
     children: Vec<Option<usize>>,
@@ -25,6 +28,7 @@ struct Position {
 
 /// The invalid branching factor supplied to [`DaryTreeAddressableHeap`].
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct InvalidBranchingFactor(pub usize);
 
 impl fmt::Display for InvalidBranchingFactor {
@@ -43,6 +47,20 @@ impl std::error::Error for InvalidBranchingFactor {}
 ///
 /// Entries reside in nodes of a complete d-ary tree. Entry handles remain
 /// stable while entries move between tree nodes to restore heap order.
+///
+/// ```
+/// use rheaps::tree::DaryTreeAddressableHeap;
+///
+/// let mut heap = DaryTreeAddressableHeap::new(4).unwrap();
+/// heap.insert(4, "clean up");
+/// heap.insert(1, "reply to mail");
+///
+/// assert_eq!(
+///     heap.peek_entry().map(|(_, key, value)| (*key, *value)),
+///     Some((1, "reply to mail")),
+/// );
+/// ```
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct DaryTreeAddressableHeap<K, V = ()> {
     degree: usize,
     entries: Vec<EntrySlot<K, V>>,

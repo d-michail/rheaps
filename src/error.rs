@@ -11,6 +11,7 @@ use core::fmt;
 
 /// The reason an addressable heap rejected a handle.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum InvalidHandle {
     /// The handle was created by a different heap.
     ForeignHeap,
@@ -32,6 +33,7 @@ impl std::error::Error for InvalidHandle {}
 /// An error returned when decreasing an entry's key in a
 /// [`DecreaseKeyHeap`](crate::DecreaseKeyHeap).
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum DecreaseKeyError {
     /// The handle was not valid for this heap.
     InvalidHandle(InvalidHandle),
@@ -61,6 +63,7 @@ impl std::error::Error for DecreaseKeyError {}
 /// An error returned when increasing an entry's key in a double-ended
 /// addressable heap.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum IncreaseKeyError {
     /// The handle was not valid for this heap.
     InvalidHandle(InvalidHandle),

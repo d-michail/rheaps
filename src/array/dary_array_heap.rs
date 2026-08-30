@@ -6,6 +6,7 @@ const DEFAULT_HEAP_CAPACITY: usize = 16;
 
 /// Error returned when a d-ary heap has fewer than two children per node.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct InvalidDegree(pub usize);
 
 impl fmt::Display for InvalidDegree {
@@ -24,7 +25,21 @@ impl std::error::Error for InvalidDegree {}
 ///
 /// Larger degrees reduce the height of the heap, making insertion cheaper, but
 /// require more comparisons while removing a minimum value.
+///
+/// ```
+/// use rheaps::Heap;
+/// use rheaps::array::DaryArrayHeap;
+///
+/// let mut heap = DaryArrayHeap::new(4).unwrap();
+/// heap.push(4);
+/// heap.push(1);
+/// heap.push(3);
+///
+/// assert_eq!(heap.degree(), 4);
+/// assert_eq!(heap.pop(), Some(1));
+/// ```
 #[derive(Clone, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct DaryArrayHeap<T> {
     values: Vec<T>,
     degree: usize,

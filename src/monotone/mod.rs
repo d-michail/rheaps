@@ -50,6 +50,7 @@ static NEXT_HEAP_ID: AtomicU64 = AtomicU64::new(1);
 /// An error returned when constructing a [`FiniteF64`] from a non-finite
 /// floating-point value.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct NonFiniteF64;
 
 impl fmt::Display for NonFiniteF64 {
@@ -65,6 +66,7 @@ impl std::error::Error for NonFiniteF64 {}
 /// Its order is [`f64::total_cmp`], so negative zero sorts before positive
 /// zero. Construct one with [`FiniteF64::new`] or [`TryFrom<f64>`].
 #[derive(Clone, Copy, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct FiniteF64(f64);
 
 impl FiniteF64 {
@@ -132,6 +134,7 @@ impl core::hash::Hash for FiniteF64 {
 
 /// A key or bounds error reported by a monotone radix heap.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum RadixHeapError {
     /// The supplied lower and upper bounds do not define a supported range.
     InvalidRange,
@@ -165,6 +168,7 @@ impl std::error::Error for RadixHeapError {}
 
 /// An error returned by an addressable radix heap key decrease.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum RadixDecreaseKeyError {
     /// The handle was stale or belongs to another heap.
     InvalidHandle(InvalidHandle),
@@ -281,6 +285,7 @@ impl RadixKey for FiniteF64 {
     }
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 struct RadixHeapCore<K> {
     buckets: Vec<Vec<K>>,
     len: usize,
@@ -395,12 +400,14 @@ impl<K: RadixKey> RadixHeapCore<K> {
 /// A handle is valid only for the heap that returned it, and becomes stale
 /// after its entry is removed or the heap is cleared.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct RadixHandle {
     heap_id: u64,
     slot: usize,
     generation: u64,
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 struct AddressableEntry<K, V> {
     key: K,
     value: V,
@@ -408,11 +415,13 @@ struct AddressableEntry<K, V> {
     position: usize,
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 struct AddressableSlot<K, V> {
     entry: Option<AddressableEntry<K, V>>,
     generation: u64,
 }
 
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 struct AddressableRadixHeapCore<K, V> {
     buckets: Vec<Vec<usize>>,
     slots: Vec<AddressableSlot<K, V>>,
@@ -733,12 +742,17 @@ fn next_heap_id() -> u64 {
 }
 
 macro_rules! define_radix_heap {
-    ($name:ident, $key:ty, $documentation:literal) => {
+    ($name:ident, $key:ty, $documentation:literal, $example:literal) => {
         #[doc = $documentation]
         ///
         /// This heap uses radix buckets rather than a comparison heap. Keys
         /// must remain within its construction bounds and cannot move below
         /// the most recently removed key.
+        ///
+        /// # Examples
+        ///
+        #[doc = $example]
+        #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
         pub struct $name {
             core: RadixHeapCore<$key>,
         }
@@ -847,26 +861,75 @@ macro_rules! define_radix_heap {
     };
 }
 
-define_radix_heap!(U32RadixHeap, u32, "A monotone radix heap for `u32` keys.");
-define_radix_heap!(U64RadixHeap, u64, "A monotone radix heap for `u64` keys.");
+define_radix_heap!(
+    U32RadixHeap,
+    u32,
+    "A monotone radix heap for `u32` keys.",
+    r#"```
+use rheaps::monotone::U32RadixHeap;
+
+let mut heap = U32RadixHeap::new(0, 100).unwrap();
+heap.try_push(30).unwrap();
+heap.try_push(10).unwrap();
+assert_eq!(heap.pop(), Some(10));
+assert_eq!(heap.pop(), Some(30));
+```"#
+);
+define_radix_heap!(
+    U64RadixHeap,
+    u64,
+    "A monotone radix heap for `u64` keys.",
+    r#"```
+use rheaps::monotone::U64RadixHeap;
+
+let mut heap = U64RadixHeap::new(0, 100).unwrap();
+heap.try_push(30).unwrap();
+heap.try_push(10).unwrap();
+assert_eq!(heap.pop(), Some(10));
+assert_eq!(heap.pop(), Some(30));
+```"#
+);
 define_radix_heap!(
     F64RadixHeap,
     FiniteF64,
-    "A monotone radix heap for finite, non-negative [`FiniteF64`] keys."
+    "A monotone radix heap for finite, non-negative [`FiniteF64`] keys.",
+    r#"```
+use rheaps::monotone::{F64RadixHeap, FiniteF64};
+
+let zero = FiniteF64::new(0.0).unwrap();
+let ten = FiniteF64::new(10.0).unwrap();
+let mut heap = F64RadixHeap::new(zero, ten).unwrap();
+heap.try_push(FiniteF64::new(2.5).unwrap()).unwrap();
+assert_eq!(heap.pop().map(FiniteF64::into_inner), Some(2.5));
+```"#
 );
 define_radix_heap!(
     BigUintRadixHeap,
     BigUint,
-    "A monotone radix heap for arbitrary-sized unsigned [`BigUint`] keys."
+    "A monotone radix heap for arbitrary-sized unsigned [`BigUint`] keys.",
+    r#"```
+use rheaps::monotone::{BigUint, BigUintRadixHeap};
+
+let mut heap = BigUintRadixHeap::new(BigUint::from(0_u8), BigUint::from(100_u8)).unwrap();
+heap.try_push(BigUint::from(30_u8)).unwrap();
+heap.try_push(BigUint::from(10_u8)).unwrap();
+assert_eq!(heap.pop(), Some(BigUint::from(10_u8)));
+assert_eq!(heap.pop(), Some(BigUint::from(30_u8)));
+```"#
 );
 
 macro_rules! define_addressable_radix_heap {
-    ($name:ident, $key:ty, $documentation:literal) => {
+    ($name:ident, $key:ty, $documentation:literal, $example:literal) => {
         #[doc = $documentation]
         ///
         /// Handles are checked for foreign and stale use. As with every radix
         /// heap in this module, fallible insertion and key-update methods
         /// enforce range and monotonicity restrictions.
+        ///
+        /// # Examples
+        ///
+        #[doc = $example]
+        #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
         pub struct $name<V> {
             core: AddressableRadixHeapCore<$key, V>,
         }
@@ -1043,22 +1106,75 @@ macro_rules! define_addressable_radix_heap {
 define_addressable_radix_heap!(
     U32RadixAddressableHeap,
     u32,
-    "An addressable monotone radix heap for `u32` keys."
+    "An addressable monotone radix heap for `u32` keys.",
+    r#"```
+use rheaps::monotone::U32RadixAddressableHeap;
+
+let mut heap = U32RadixAddressableHeap::new(0, 100).unwrap();
+let task = heap.try_insert(30, "compile report").unwrap();
+heap.try_insert(10, "answer mail").unwrap();
+
+heap.decrease_key(task, 20).unwrap();
+assert_eq!(heap.peek().map(|(_, key, _)| *key), Some(10));
+assert_eq!(heap.delete(task), Ok((20, "compile report")));
+```"#
 );
 define_addressable_radix_heap!(
     U64RadixAddressableHeap,
     u64,
-    "An addressable monotone radix heap for `u64` keys."
+    "An addressable monotone radix heap for `u64` keys.",
+    r#"```
+use rheaps::monotone::U64RadixAddressableHeap;
+
+let mut heap = U64RadixAddressableHeap::new(0, 100).unwrap();
+let task = heap.try_insert(30, "compile report").unwrap();
+heap.try_insert(10, "answer mail").unwrap();
+
+heap.decrease_key(task, 20).unwrap();
+assert_eq!(heap.peek().map(|(_, key, _)| *key), Some(10));
+assert_eq!(heap.delete(task), Ok((20, "compile report")));
+```"#
 );
 define_addressable_radix_heap!(
     F64RadixAddressableHeap,
     FiniteF64,
-    "An addressable monotone radix heap for finite, non-negative [`FiniteF64`] keys."
+    "An addressable monotone radix heap for finite, non-negative [`FiniteF64`] keys.",
+    r#"```
+use rheaps::monotone::{F64RadixAddressableHeap, FiniteF64};
+
+let zero = FiniteF64::new(0.0).unwrap();
+let hundred = FiniteF64::new(100.0).unwrap();
+let mut heap = F64RadixAddressableHeap::new(zero, hundred).unwrap();
+let task = heap.try_insert(FiniteF64::new(30.0).unwrap(), "compile report").unwrap();
+heap.try_insert(FiniteF64::new(10.0).unwrap(), "answer mail").unwrap();
+
+heap.decrease_key(task, FiniteF64::new(20.0).unwrap()).unwrap();
+assert_eq!(
+    heap.peek().map(|(_, key, _)| key.as_f64()),
+    Some(10.0)
+);
+```"#
 );
 define_addressable_radix_heap!(
     BigUintRadixAddressableHeap,
     BigUint,
-    "An addressable monotone radix heap for arbitrary-sized unsigned [`BigUint`] keys."
+    "An addressable monotone radix heap for arbitrary-sized unsigned [`BigUint`] keys.",
+    r#"```
+use rheaps::monotone::{BigUint, BigUintRadixAddressableHeap};
+
+let mut heap =
+    BigUintRadixAddressableHeap::new(BigUint::from(0_u8), BigUint::from(100_u8)).unwrap();
+let task = heap
+    .try_insert(BigUint::from(30_u8), "compile report")
+    .unwrap();
+heap.try_insert(BigUint::from(10_u8), "answer mail").unwrap();
+
+heap.decrease_key(task, BigUint::from(20_u8)).unwrap();
+assert_eq!(
+    heap.peek().map(|(_, key, _)| key.clone()),
+    Some(BigUint::from(10_u8))
+);
+```"#
 );
 
 #[cfg(test)]

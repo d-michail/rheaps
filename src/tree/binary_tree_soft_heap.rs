@@ -9,6 +9,22 @@ use super::soft_heap_core::{SoftHeapCore, SoftHeapError, SoftMeldError};
 /// The original keys are always returned, exactly once. Keys must be cloneable
 /// because a soft heap retains a corrupted-key snapshot while returning the
 /// original key by value.
+///
+/// ```
+/// use rheaps::tree::BinaryTreeSoftHeap;
+///
+/// let mut heap = BinaryTreeSoftHeap::new(0.1).unwrap();
+/// heap.push(4);
+/// heap.push(1);
+/// heap.push(3);
+///
+/// assert_eq!(heap.len(), 3);
+/// // A soft heap may corrupt priorities, so only the count of returned
+/// // original keys - not their order - is guaranteed here.
+/// let popped: Vec<_> = core::iter::from_fn(|| heap.pop()).collect();
+/// assert_eq!(popped.len(), 3);
+/// ```
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BinaryTreeSoftHeap<K> {
     core: SoftHeapCore<K, ()>,
 }

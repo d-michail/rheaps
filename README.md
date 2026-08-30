@@ -79,6 +79,25 @@ cd rheaps
 cargo test --all-targets
 ```
 
+### Optional features
+
+- `serde` — adds `Serialize`/`Deserialize` implementations for every heap,
+  handle, and key type in the crate, so a populated heap can be persisted and
+  reloaded. Enable it with:
+
+  ```toml
+  [dependencies]
+  rheaps = { version = "0.16", features = ["serde"] }
+  ```
+
+## Compatibility
+
+`rheaps` is pre-1.0 and follows Cargo's `0.x` convention: breaking changes
+may land in any `0.x` release rather than only at a major version bump.
+Once the crate reaches `1.0`, renamed or removed public items will go
+through a deprecation cycle before removal, and releases will follow
+semantic versioning.
+
 ## Quick start
 
 All ordinary heaps are min-oriented according to the key type's `Ord`
@@ -301,7 +320,9 @@ The implementation set and much of the behavioral test coverage are derived
 from [JHeaps](https://github.com/d-michail/jheaps). The API follows Rust's
 ownership, trait, and error-handling conventions rather than reproducing the
 Java API literally. All public heap implementations in JHeaps are represented
-in this crate.
+in this crate. Behavioral coverage is tracked at the shared-fixture level—one
+Rust conformance fixture exercised against every implementation it applies
+to—rather than as a method-by-method mapping to JHeaps' Java test suite.
 
 ## License
 

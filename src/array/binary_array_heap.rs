@@ -1,7 +1,21 @@
 use crate::Heap;
 
 /// An array-backed binary min-heap.
+///
+/// ```
+/// use rheaps::Heap;
+/// use rheaps::array::BinaryArrayHeap;
+///
+/// let mut heap = BinaryArrayHeap::new();
+/// heap.push(4);
+/// heap.push(1);
+/// heap.push(3);
+///
+/// assert_eq!(heap.pop(), Some(1));
+/// assert_eq!(heap.pop(), Some(3));
+/// ```
 #[derive(Clone, Debug)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct BinaryArrayHeap<T> {
     values: Vec<T>,
 }
