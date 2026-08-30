@@ -24,31 +24,6 @@ renames and signature changes should follow a deprecation and migration cycle.
 
 ## Priority 1: Ownership and error semantics
 
-### Consume meld donors through ownership
-
-Current meld operations take `&mut Self`, transfer the donor's contents, and
-leave the donor in an inactive state. Subsequent operations can therefore fail
-with `ReceiverConsumed` or `DonorConsumed`.
-
-Investigate changing the common operation to consume the donor:
-
-```rust
-fn meld(&mut self, other: Self) -> Result<(), Self::MeldError>;
-```
-
-This would make donor reuse a compile-time error and could remove the inactive
-heap state and its associated runtime errors. Addressable donor handles must
-remain valid through the receiver after the move.
-
-Tasks:
-
-- Update `MeldableHeap`, `MeldableAddressableHeap`, and
-  `MeldableDoubleEndedAddressableHeap`.
-- Update tree, reflected, soft, and hollow heap implementations.
-- Remove `active` state where it is no longer required.
-- Reassess `ReceiverConsumed` and `DonorConsumed` error variants.
-- Preserve tests for transitive melds and donor-handle migration.
-
 ### Introduce a fallible heap abstraction
 
 Radix heaps have fallible insertion because keys can violate configured bounds
@@ -120,6 +95,5 @@ Every API migration should include:
 ## Suggested sequence
 
 1. Decide the pre-1.0 compatibility policy.
-2. Redesign meld ownership and remove poisoned donor states.
-3. Design fallible heap traits and neutral shared error types.
-4. Publish a migration guide and stabilize the resulting public API.
+2. Design fallible heap traits and neutral shared error types.
+3. Publish a migration guide and stabilize the resulting public API.
