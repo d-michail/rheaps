@@ -276,8 +276,12 @@ The crate root defines the shared traits:
 - `Heap` and `ValueHeap`;
 - `AddressableHeap`;
 - `DoubleEndedHeap` and `DoubleEndedAddressableHeap`;
-- `MeldableHeap` and `MeldableAddressableHeap`; and
-- `MeldableDoubleEndedAddressableHeap`.
+- `MeldableHeap` and `MeldableAddressableHeap`;
+- `MeldableDoubleEndedAddressableHeap`; and
+- `TryHeap`, `TryAddressableHeap`, and `TryDecreaseKeyHeap`, fallible
+  counterparts to `Heap`/`AddressableHeap`/`DecreaseKeyHeap` for heap
+  families - currently only the radix heaps in `monotone` - whose insertion
+  can fail because of algorithm-specific key restrictions.
 
 Concrete types also provide inherent methods, so callers can use a heap
 directly without writing generic code. Addressable operations report invalid,

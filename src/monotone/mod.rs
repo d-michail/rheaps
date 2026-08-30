@@ -3,18 +3,38 @@
 //!
 //! A radix heap is efficient when items are removed in nondecreasing key
 //! order, such as in Dijkstra's algorithm.  A key inserted after an item has
-//! been removed must be no smaller than that last removed key.  The fallible
-//! inherent insertion method ([`U32RadixHeap::try_push`], for example)
-//! reports violations through [`RadixHeapError`].
-//!
-//! The [`Heap`] and [`AddressableHeap`] trait implementations are available
-//! for generic use, but their infallible `push`/`insert` methods panic if
-//! this radix heap-specific precondition is violated. Prefer the fallible
-//! inherent methods when the key is not already known to satisfy the
-//! constraint.
+//! been removed must be no smaller than that last removed key.  Insertion and
+//! key decreases report violations of these constraints through
+//! [`RadixHeapError`] rather than panicking, so every radix heap implements
+//! the fallible [`TryHeap`]/[`TryAddressableHeap`]/[`TryDecreaseKeyHeap`]
+//! traits (and the matching inherent `try_push`/`try_insert`/`decrease_key`
+//! methods) instead of the infallible [`Heap`](crate::Heap)/
+//! [`AddressableHeap`](crate::AddressableHeap).
 //!
 //! Floating-point heaps use [`FiniteF64`], which rejects NaN and infinities
 //! and implements the total ordering of [`f64::total_cmp`].
+//!
+//! # Generic fallible use
+//!
+//! ```
+//! use rheaps::monotone::{RadixHeapError, U32RadixHeap};
+//! use rheaps::TryHeap;
+//!
+//! fn insert_or_report<H>(heap: &mut H, key: u32) -> Result<(), H::InsertError>
+//! where
+//!     H: TryHeap<u32>,
+//! {
+//!     heap.try_push(key)
+//! }
+//!
+//! let mut heap = U32RadixHeap::new(0, 10).unwrap();
+//! insert_or_report(&mut heap, 3).unwrap();
+//! assert_eq!(
+//!     insert_or_report(&mut heap, 20),
+//!     Err(RadixHeapError::KeyOutOfRange)
+//! );
+//! assert_eq!(heap.pop(), Some(3));
+//! ```
 
 use core::cmp::Ordering;
 use core::fmt;
@@ -23,7 +43,7 @@ use core::sync::atomic::{AtomicU64, Ordering as AtomicOrdering};
 pub use num_bigint::BigUint;
 
 use crate::error::{DecreaseKeyError, InvalidHandle};
-use crate::{AddressableHeap, DecreaseKeyHeap, Heap};
+use crate::{TryAddressableHeap, TryDecreaseKeyHeap, TryHeap};
 
 static NEXT_HEAP_ID: AtomicU64 = AtomicU64::new(1);
 
@@ -462,7 +482,7 @@ impl<K: RadixKey, V> AddressableRadixHeapCore<K, V> {
         Ok(handle.slot)
     }
 
-    fn try_push(&mut self, key: K, value: V) -> Result<RadixHandle, RadixHeapError> {
+    fn try_insert(&mut self, key: K, value: V) -> Result<RadixHandle, RadixHeapError> {
         self.check_key(&key)?;
         let replace_minimum = match self.current_minimum {
             Some(slot) => key < self.slots[slot].entry.as_ref().expect("live minimum").key,
@@ -801,10 +821,11 @@ macro_rules! define_radix_heap {
             }
         }
 
-        impl Heap<$key> for $name {
-            fn push(&mut self, value: $key) {
-                self.try_push(value)
-                    .expect("radix heap key must satisfy its configured monotone range");
+        impl TryHeap<$key> for $name {
+            type InsertError = RadixHeapError;
+
+            fn try_push(&mut self, value: $key) -> Result<(), Self::InsertError> {
+                Self::try_push(self, value)
             }
 
             fn peek(&self) -> Option<&$key> {
@@ -892,8 +913,12 @@ macro_rules! define_addressable_radix_heap {
             }
 
             /// Inserts a key-value entry and returns its handle.
-            pub fn try_push(&mut self, key: $key, value: V) -> Result<RadixHandle, RadixHeapError> {
-                self.core.try_push(key, value)
+            pub fn try_insert(
+                &mut self,
+                key: $key,
+                value: V,
+            ) -> Result<RadixHandle, RadixHeapError> {
+                self.core.try_insert(key, value)
             }
 
             /// Returns the handle, key, and value of the minimum entry.
@@ -956,12 +981,16 @@ macro_rules! define_addressable_radix_heap {
             }
         }
 
-        impl<V> AddressableHeap<$key, V> for $name<V> {
+        impl<V> TryAddressableHeap<$key, V> for $name<V> {
             type Handle = RadixHandle;
+            type InsertError = RadixHeapError;
 
-            fn insert(&mut self, key: $key, value: V) -> Self::Handle {
-                self.try_push(key, value)
-                    .expect("radix heap key must satisfy its configured monotone range")
+            fn try_insert(
+                &mut self,
+                key: $key,
+                value: V,
+            ) -> Result<Self::Handle, Self::InsertError> {
+                Self::try_insert(self, key, value)
             }
 
             fn peek(&self) -> Option<(Self::Handle, &$key, &V)> {
@@ -997,13 +1026,15 @@ macro_rules! define_addressable_radix_heap {
             }
         }
 
-        impl<V> DecreaseKeyHeap<$key, V> for $name<V> {
+        impl<V> TryDecreaseKeyHeap<$key, V> for $name<V> {
+            type DecreaseKeyError = RadixDecreaseKeyError;
+
             fn decrease_key(
                 &mut self,
                 handle: Self::Handle,
                 key: $key,
-            ) -> Result<(), DecreaseKeyError> {
-                Self::decrease_key(self, handle, key).map_err(Into::into)
+            ) -> Result<(), Self::DecreaseKeyError> {
+                Self::decrease_key(self, handle, key)
             }
         }
     };

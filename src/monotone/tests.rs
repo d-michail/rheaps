@@ -8,7 +8,7 @@ use super::{
     U32RadixHeap, U64RadixAddressableHeap, U64RadixHeap,
 };
 use crate::error::InvalidHandle;
-use crate::{AddressableHeap, Heap};
+use crate::{TryAddressableHeap, TryDecreaseKeyHeap, TryHeap};
 
 const RANDOM_VALUES: usize = 4_000;
 
@@ -128,7 +128,7 @@ macro_rules! impl_addressable_fixture {
                 key: $key,
                 value: usize,
             ) -> Result<RadixHandle, RadixHeapError> {
-                self.try_push(key, value)
+                self.try_insert(key, value)
             }
 
             fn fixture_peek(&self) -> Option<(RadixHandle, &$key, &usize)> {
@@ -361,7 +361,7 @@ fn addressable_radix_heaps_cover_jheaps_regression_sequences() {
 
     let mut update = U64RadixAddressableHeap::new(0, u64::MAX).unwrap();
     for key in [0, 0, u64::MAX, u64::MAX, u64::MAX, u64::MAX] {
-        update.try_push(key, ()).unwrap();
+        update.try_insert(key, ()).unwrap();
     }
     assert_eq!(update.pop().map(|entry| entry.0), Some(0));
     assert_eq!(update.pop().map(|entry| entry.0), Some(0));
@@ -369,13 +369,13 @@ fn addressable_radix_heaps_cover_jheaps_regression_sequences() {
 
     let mut regression =
         F64RadixAddressableHeap::new(finite(0.0), finite(3.667_944_409_236_726)).unwrap();
-    regression.try_push(finite(0.0), 0).unwrap();
+    regression.try_insert(finite(0.0), 0).unwrap();
     regression
-        .try_push(finite(0.916_986_102_309_181_5), 1)
+        .try_insert(finite(0.916_986_102_309_181_5), 1)
         .unwrap();
     assert_eq!(regression.pop().map(|entry| entry.0), Some(finite(0.0)));
     regression
-        .try_push(finite(1.781_470_858_172_715_4), 2)
+        .try_insert(finite(1.781_470_858_172_715_4), 2)
         .unwrap();
     assert_eq!(
         regression.pop().map(|entry| entry.0),
@@ -391,9 +391,9 @@ macro_rules! exercise_addressable_handles {
     ($make:expr, $zero:expr, $five:expr, $ten:expr, $fifteen:expr, $twenty:expr, $thirty:expr) => {{
         let mut heap = $make;
         let mut foreign_heap = $make;
-        let foreign = foreign_heap.try_push($zero, 99).unwrap();
-        let first = heap.try_push($zero, 0).unwrap();
-        let second = heap.try_push($ten, 1).unwrap();
+        let foreign = foreign_heap.try_insert($zero, 99).unwrap();
+        let first = heap.try_insert($zero, 0).unwrap();
+        let second = heap.try_insert($ten, 1).unwrap();
 
         assert_eq!(
             heap.decrease_key(second, $fifteen),
@@ -411,9 +411,9 @@ macro_rules! exercise_addressable_handles {
         assert_eq!(heap.delete(second), Ok(($five, 1)));
         assert_eq!(heap.key(second), Err(InvalidHandle::Stale));
 
-        heap.try_push($twenty, 2).unwrap();
+        heap.try_insert($twenty, 2).unwrap();
         assert_eq!(heap.pop(), Some(($twenty, 2)));
-        let live = heap.try_push($thirty, 3).unwrap();
+        let live = heap.try_insert($thirty, 3).unwrap();
         assert_eq!(
             heap.decrease_key(live, $fifteen),
             Err(RadixDecreaseKeyError::Radix(
@@ -546,13 +546,26 @@ fn double_heaps_use_total_order_and_reject_non_finite_keys() {
 }
 
 #[test]
-fn common_heap_traits_remain_usable_for_valid_monotone_keys() {
+fn common_try_heap_traits_remain_usable_generically() {
     let mut values = U32RadixHeap::new(0, 10).unwrap();
-    Heap::push(&mut values, 3);
-    assert_eq!(Heap::pop(&mut values), Some(3));
+    TryHeap::try_push(&mut values, 3).unwrap();
+    assert_eq!(
+        TryHeap::try_push(&mut values, 20),
+        Err(RadixHeapError::KeyOutOfRange)
+    );
+    assert_eq!(TryHeap::pop(&mut values), Some(3));
 
     let mut entries = U32RadixAddressableHeap::new(0, 10).unwrap();
-    let handle = AddressableHeap::insert(&mut entries, 3, "entry");
-    assert_eq!(AddressableHeap::key(&entries, handle), Ok(&3));
-    assert_eq!(AddressableHeap::pop(&mut entries), Some((3, "entry")));
+    let handle = TryAddressableHeap::try_insert(&mut entries, 3, "entry").unwrap();
+    assert_eq!(
+        TryAddressableHeap::try_insert(&mut entries, 20, "out of range"),
+        Err(RadixHeapError::KeyOutOfRange)
+    );
+    assert_eq!(TryAddressableHeap::key(&entries, handle), Ok(&3));
+    TryDecreaseKeyHeap::decrease_key(&mut entries, handle, 1).unwrap();
+    assert_eq!(
+        TryDecreaseKeyHeap::decrease_key(&mut entries, handle, 5),
+        Err(RadixDecreaseKeyError::NotDecreased)
+    );
+    assert_eq!(TryAddressableHeap::pop(&mut entries), Some((1, "entry")));
 }

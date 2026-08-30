@@ -13,7 +13,7 @@ concurrency:
 
 jobs:
   check:
-    name: Format, lint, test, and document
+    name: Format, lint, test, document, and package
     runs-on: ubuntu-latest
 
     steps:
@@ -42,3 +42,9 @@ jobs:
         env:
           RUSTDOCFLAGS: -D warnings
         run: cargo doc --no-deps --all-features
+
+      - name: Check package contents
+        run: cargo package --list
+
+      - name: Verify publish
+        run: cargo publish --dry-run

@@ -51,9 +51,12 @@
 //!   concrete type by taking it by value. The donor is moved into the call,
 //!   so reusing it afterward is a compile-time error rather than a runtime
 //!   one; handles the donor already issued stay valid through the receiver.
-//! - **Fallibility.** Ordinary heaps never fail to insert. Radix heaps in
+//! - **Fallibility.** Ordinary heaps implement the infallible [`Heap`] and
+//!   [`AddressableHeap`] and never fail to insert. Radix heaps in
 //!   [`monotone`] are the exception: their constructors validate key bounds,
-//!   and insertion enforces monotonicity, both reported through `Result`.
+//!   and insertion enforces monotonicity, so they implement [`TryHeap`],
+//!   [`TryAddressableHeap`], and [`TryDecreaseKeyHeap`] instead, reporting
+//!   violations through `Result` rather than panicking.
 //!
 //! # Relationship to JHeaps
 //!
@@ -226,6 +229,121 @@ pub trait DecreaseKeyHeap<K, V>: AddressableHeap<K, V> {
     /// than the current one.
     fn decrease_key(&mut self, handle: Self::Handle, key: K)
     -> Result<(), error::DecreaseKeyError>;
+}
+
+/// A heap whose insertion can fail because of algorithm-specific key
+/// restrictions.
+///
+/// Complements [`Heap`] for heap families - currently only the radix heaps
+/// in [`monotone`] - whose valid key space depends on runtime construction
+/// bounds or insertion history, so insertion cannot be infallible.
+pub trait TryHeap<T> {
+    /// Error returned when a value cannot be inserted.
+    type InsertError;
+
+    /// Attempts to insert `value`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if `value` violates this heap's key restrictions.
+    fn try_push(&mut self, value: T) -> Result<(), Self::InsertError>;
+
+    /// Returns a reference to a minimum value, if present.
+    fn peek(&self) -> Option<&T>;
+
+    /// Removes and returns a minimum value, if present.
+    fn pop(&mut self) -> Option<T>;
+
+    /// Returns the number of values in the heap.
+    fn len(&self) -> usize;
+
+    /// Removes all values from the heap.
+    fn clear(&mut self);
+
+    /// Returns whether the heap contains no values.
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+}
+
+/// A min-oriented heap whose entries are addressed by stable handles and
+/// whose insertion can fail because of algorithm-specific key restrictions.
+///
+/// Complements [`AddressableHeap`] the same way [`TryHeap`] complements
+/// [`Heap`].
+pub trait TryAddressableHeap<K, V> {
+    /// Opaque type that identifies a live entry in this heap.
+    type Handle: Copy + Eq;
+    /// Error returned when an entry cannot be inserted.
+    type InsertError;
+
+    /// Attempts to insert an entry and returns its handle.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if `key` violates this heap's key restrictions.
+    fn try_insert(&mut self, key: K, value: V) -> Result<Self::Handle, Self::InsertError>;
+
+    /// Returns the handle, key, and value of a minimum entry, if present.
+    fn peek(&self) -> Option<(Self::Handle, &K, &V)>;
+
+    /// Removes and returns a minimum entry, if present.
+    fn pop(&mut self) -> Option<(K, V)>;
+
+    /// Returns the key identified by `handle`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if `handle` is stale or belongs to another heap.
+    fn key(&self, handle: Self::Handle) -> Result<&K, error::InvalidHandle>;
+
+    /// Returns the value identified by `handle`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if `handle` is stale or belongs to another heap.
+    fn value(&self, handle: Self::Handle) -> Result<&V, error::InvalidHandle>;
+
+    /// Returns mutable access to the value identified by `handle`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if `handle` is stale or belongs to another heap.
+    fn value_mut(&mut self, handle: Self::Handle) -> Result<&mut V, error::InvalidHandle>;
+
+    /// Removes and returns the entry identified by `handle`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if `handle` is stale or belongs to another heap.
+    fn delete(&mut self, handle: Self::Handle) -> Result<(K, V), error::InvalidHandle>;
+
+    /// Returns the number of live entries.
+    fn len(&self) -> usize;
+
+    /// Removes all entries and invalidates every outstanding handle.
+    fn clear(&mut self);
+
+    /// Returns whether the heap contains no entries.
+    fn is_empty(&self) -> bool {
+        self.len() == 0
+    }
+}
+
+/// A [`TryAddressableHeap`] that supports decreasing a live entry's key,
+/// reporting the same key restrictions as insertion.
+pub trait TryDecreaseKeyHeap<K, V>: TryAddressableHeap<K, V> {
+    /// Error returned when a key decrease cannot be performed.
+    type DecreaseKeyError;
+
+    /// Decreases the key identified by `handle`.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for an invalid handle, a key with lower priority
+    /// than the current one, or a key that violates this heap's key
+    /// restrictions.
+    fn decrease_key(&mut self, handle: Self::Handle, key: K) -> Result<(), Self::DecreaseKeyError>;
 }
 
 /// A heap that can efficiently combine its contents with another heap of the
