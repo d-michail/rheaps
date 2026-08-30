@@ -65,6 +65,29 @@
 //! follows Rust's ownership, trait, and error-handling conventions rather
 //! than reproducing the Java API literally.
 //!
+//! # Cite
+//!
+//! If you use this library, please cite the paper describing the algorithms
+//! and implementation set it is derived from:
+//!
+//! D. Michail. **JHeaps: An open-source library of priority queues.**
+//! SoftwareX, 16:100869, 2021.
+//! <https://doi.org/10.1016/j.softx.2021.100869>
+//!
+//! ```text
+//! @article{michail2021jheaps,
+//!       title={JHeaps: An open-source library of priority queues},
+//!       author={Michail, Dimitrios},
+//!       journal={SoftwareX},
+//!       volume={16},
+//!       pages={100869},
+//!       year={2021},
+//!       publisher={Elsevier},
+//!       doi={10.1016/j.softx.2021.100869},
+//!       url={https://doi.org/10.1016/j.softx.2021.100869},
+//! }
+//! ```
+//!
 //! # Optional features
 //!
 //! - `serde` - implements `Serialize`/`Deserialize` for every heap, handle,
