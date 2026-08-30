@@ -2,9 +2,12 @@
 name = "rheaps"
 version = "0.16.0"
 edition = "2024"
+rust-version = "1.88"
 description = "Heap data structures for Rust"
 license = "Apache-2.0"
 repository = "https://github.com/d-michail/rheaps"
+documentation = "https://docs.rs/rheaps"
+readme = "README.md"
 keywords = ["heap", "priority-queue", "data-structures"]
 categories = ["data-structures"]
 
