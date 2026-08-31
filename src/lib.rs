@@ -22,6 +22,45 @@
 //! assert_eq!(heap.pop(), Some(1));
 //! ```
 //!
+//! Addressable heaps hand back a handle for each entry so it can be updated
+//! or removed later. [`tree::PairingHeap`] is both addressable and meldable:
+//!
+//! ```
+//! use rheaps::tree::PairingHeap;
+//!
+//! let mut heap = PairingHeap::new();
+//! let compile = heap.insert(10, "compile report");
+//! heap.insert(5, "answer mail");
+//!
+//! heap.decrease_key(compile, 1).unwrap();
+//! assert_eq!(
+//!     heap.peek_entry().map(|(_, key, value)| (*key, *value)),
+//!     Some((1, "compile report")),
+//! );
+//! assert_eq!(heap.delete(compile), Ok((1, "compile report")));
+//! ```
+//!
+//! Melding absorbs another heap of the same type; handles the donor had
+//! already issued keep working through the receiver:
+//!
+//! ```
+//! use rheaps::tree::PairingHeap;
+//!
+//! let mut a = PairingHeap::new();
+//! a.push(3);
+//! a.push(5);
+//!
+//! let mut b = PairingHeap::new();
+//! let deadline = b.insert(4, ());
+//! b.push(9);
+//!
+//! a.meld(b); // b is moved here and can no longer be used
+//! a.decrease_key(deadline, 1).unwrap();
+//!
+//! assert_eq!(a.pop(), Some(1));
+//! assert_eq!(a.pop(), Some(3));
+//! ```
+//!
 //! # Choosing an implementation
 //!
 //! | Module        | Representative types                                                    | Reach for it when you need                                              |

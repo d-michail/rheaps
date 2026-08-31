@@ -123,21 +123,26 @@ assert_eq!(heap.pop(), None);
 
 An addressable heap associates each key with a value and returns a handle for
 the entry. Handles are rejected if they are stale or belong to another heap.
+Here we use `PairingHeap`, which is addressable and meldable.
 
 ```rust
 use rheaps::AddressableHeap;
-use rheaps::array::BinaryArrayAddressableHeap;
+use rheaps::tree::PairingHeap;
 
-let mut heap = BinaryArrayAddressableHeap::new();
-let task = heap.insert(10, "compile report");
+let mut heap = PairingHeap::new();
+let compile = heap.insert(10, "compile report");
 heap.insert(5, "answer mail");
 
-heap.decrease_key(task, 1).unwrap();
+heap.decrease_key(compile, 1).unwrap();
 assert_eq!(
     heap.peek().map(|(_, key, value)| (*key, *value)),
     Some((1, "compile report")),
 );
-assert_eq!(heap.delete(task), Ok((1, "compile report")));
+assert_eq!(heap.delete(compile), Ok((1, "compile report")));
+assert_eq!(
+    heap.peek().map(|(_, key, value)| (*key, *value)),
+    Some((5, "answer mail")),
+);
 ```
 
 ### Alternative ordering
@@ -164,10 +169,9 @@ assert_eq!(heap.pop(), Some(Reverse(4)));
 A meldable heap efficiently absorbs another heap of the same concrete type by
 taking it by value. The donor is moved into the call, so reusing it afterward
 is a compile-time error; any handles it had already issued stay valid through
-the receiver.
+the receiver, as shown below with the `deadline` handle from `b`.
 
 ```rust
-use rheaps::{Heap, MeldableHeap};
 use rheaps::tree::PairingHeap;
 
 let mut a = PairingHeap::new();
@@ -175,11 +179,19 @@ a.push(3);
 a.push(5);
 
 let mut b = PairingHeap::new();
-b.push(1);
-b.push(4);
+let deadline = b.insert(4, ());
+b.push(9);
 
 a.meld(b); // b is moved here and can no longer be used
+
+// The handle issued by the donor heap still identifies its entry.
+assert_eq!(a.key(deadline), Ok(&4));
+a.decrease_key(deadline, 1).unwrap();
+
 assert_eq!(a.pop(), Some(1));
+assert_eq!(a.pop(), Some(3));
+assert_eq!(a.pop(), Some(5));
+assert_eq!(a.pop(), Some(9));
 ```
 
 ### Double-ended heaps
