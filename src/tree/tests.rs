@@ -854,6 +854,18 @@ fn pairing_heap_follows_common_heap_conformance() {
 }
 
 #[test]
+fn pairing_heap_matches_jheaps_equal_key_tie_order() {
+    let mut heap = PairingHeap::new();
+    for value in 0..4 {
+        heap.insert(0, value);
+    }
+
+    let values =
+        core::iter::from_fn(|| heap.pop_entry().map(|(_, value)| value)).collect::<Vec<_>>();
+    assert_eq!(values, vec![0, 1, 3, 2]);
+}
+
+#[test]
 fn fibonacci_heap_follows_common_heap_conformance() {
     exercise_heap(FibonacciHeap::<i32>::new);
 }

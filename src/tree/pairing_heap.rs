@@ -151,7 +151,7 @@ impl<K: Ord, V> PairingHeap<K, V> {
 
     fn combine(&mut self, children: Vec<NodeRef>) -> Option<NodeRef> {
         let mut pairs = Vec::with_capacity(children.len().div_ceil(2));
-        let mut iterator = children.into_iter();
+        let mut iterator = children.into_iter().rev();
         while let Some(first) = iterator.next() {
             pairs.push(self.link(Some(first), iterator.next()));
         }
