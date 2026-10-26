@@ -136,15 +136,10 @@ impl<K: Ord, V> PairingHeap<K, V> {
             .parent(node)
             .expect("non-root tree node must have a parent");
         let position = self.core.position(node);
-        let moved = {
-            let children = &mut self.core.node_mut(parent).children;
-            let removed = children.swap_remove(position);
-            debug_assert_eq!(removed, Some(node));
-            children.get(position).copied().flatten()
-        };
-        if let Some(moved) = moved {
-            self.core.node_mut(moved).position = position;
-        }
+        // Leave a tombstone so the surviving siblings retain their link order.
+        // The slot is reclaimed when the parent's children are combined.
+        let removed = self.core.take_child(parent, position);
+        debug_assert_eq!(removed, Some(node));
         self.core.node_mut(node).parent = None;
         self.core.node_mut(node).position = 0;
     }

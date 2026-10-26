@@ -336,6 +336,11 @@ in this crate. Behavioral coverage is tracked at the shared-fixture level—one
 Rust conformance fixture exercised against every implementation it applies
 to—rather than as a method-by-method mapping to JHeaps' Java test suite.
 
+`PairingHeap` also matches JHeaps' observable tie-breaking between equal keys,
+including after `decrease_key` and `delete`. Other heap implementations
+guarantee key order but do not promise the same relative order as JHeaps for
+entries whose keys compare equal.
+
 ## Cite
 
 If you use this library, please cite the paper describing the algorithms and
