@@ -7,6 +7,12 @@ use std::collections::HashSet;
 use crate::error::{DecreaseKeyError, InvalidHandle};
 
 static NEXT_DOMAIN_ID: AtomicU64 = AtomicU64::new(1);
+const UNKNOWN_CHILD_HOLES: usize = usize::MAX;
+
+#[cfg(feature = "serde")]
+const fn unknown_child_holes() -> usize {
+    UNKNOWN_CHILD_HOLES
+}
 
 /// An opaque handle for an entry in an addressable tree heap.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -31,6 +37,8 @@ pub(crate) struct Node<K, V> {
     pub(crate) parent: Option<NodeRef>,
     pub(crate) position: usize,
     pub(crate) children: Vec<Option<NodeRef>>,
+    #[cfg_attr(feature = "serde", serde(default = "unknown_child_holes"))]
+    child_holes: usize,
     pub(crate) rank: usize,
     pub(crate) marked: bool,
 }
@@ -125,6 +133,7 @@ impl<K: Ord, V> TreeCore<K, V> {
             parent: None,
             position: 0,
             children: Vec::new(),
+            child_holes: 0,
             rank: 0,
             marked: false,
         });
@@ -227,7 +236,21 @@ impl<K: Ord, V> TreeCore<K, V> {
     }
 
     pub(crate) fn take_child(&mut self, node: NodeRef, position: usize) -> Option<NodeRef> {
-        let child = self.node_mut(node).children.get_mut(position)?.take();
+        let child = {
+            let entry = self.node_mut(node);
+            if entry.child_holes == UNKNOWN_CHILD_HOLES {
+                entry.child_holes = entry
+                    .children
+                    .iter()
+                    .filter(|child| child.is_none())
+                    .count();
+            }
+            let child = entry.children.get_mut(position)?.take();
+            if child.is_some() {
+                entry.child_holes += 1;
+            }
+            child
+        };
         if let Some(child) = child {
             self.node_mut(child).parent = None;
         }
@@ -237,8 +260,17 @@ impl<K: Ord, V> TreeCore<K, V> {
     pub(crate) fn set_child(&mut self, parent: NodeRef, position: usize, child: Option<NodeRef>) {
         {
             let node = self.node_mut(parent);
+            if node.child_holes == UNKNOWN_CHILD_HOLES {
+                node.child_holes = node.children.iter().filter(|child| child.is_none()).count();
+            }
             if node.children.len() <= position {
+                node.child_holes += position + 1 - node.children.len();
                 node.children.resize(position + 1, None);
+            }
+            match (node.children[position], child) {
+                (None, Some(_)) => node.child_holes -= 1,
+                (Some(_), None) => node.child_holes += 1,
+                _ => {}
             }
             node.children[position] = child;
         }
@@ -255,12 +287,53 @@ impl<K: Ord, V> TreeCore<K, V> {
     }
 
     pub(crate) fn take_children(&mut self, node: NodeRef) -> Vec<NodeRef> {
-        let children = core::mem::take(&mut self.node_mut(node).children);
+        let children = {
+            let entry = self.node_mut(node);
+            entry.child_holes = 0;
+            core::mem::take(&mut entry.children)
+        };
         children
             .into_iter()
             .flatten()
             .inspect(|child| self.node_mut(*child).parent = None)
             .collect()
+    }
+
+    /// Stable-compacts a child list once at least half of its slots are holes.
+    ///
+    /// Pairing heaps deliberately leave a hole when cutting a child so the
+    /// remaining siblings keep their link order. Compacting geometrically
+    /// bounds retained storage without making every cut linear in the degree.
+    pub(crate) fn compact_children_if_sparse(&mut self, node: NodeRef) {
+        let (holes, slots) = {
+            let entry = self.node_mut(node);
+            if entry.child_holes == UNKNOWN_CHILD_HOLES {
+                entry.child_holes = entry
+                    .children
+                    .iter()
+                    .filter(|child| child.is_none())
+                    .count();
+            }
+            (entry.child_holes, entry.children.len())
+        };
+        if holes == 0 || holes * 2 < slots {
+            return;
+        }
+
+        let children = core::mem::take(&mut self.node_mut(node).children);
+        let compacted = children.into_iter().flatten().collect::<Vec<_>>();
+        for (position, child) in compacted.iter().copied().enumerate() {
+            self.node_mut(child).position = position;
+        }
+        let entry = self.node_mut(node);
+        entry.children = compacted.into_iter().map(Some).collect();
+        entry.child_holes = 0;
+    }
+
+    pub(crate) fn domains_overlap(&self, other: &Self) -> bool {
+        self.arenas
+            .keys()
+            .any(|domain| other.arenas.contains_key(domain))
     }
 
     pub(crate) fn parent(&self, node: NodeRef) -> Option<NodeRef> {
@@ -311,6 +384,17 @@ impl<K: Ord, V> TreeCore<K, V> {
         while let Some((node, parent)) = stack.pop() {
             assert!(visited.insert(node), "a tree node appears more than once");
             let entry = self.node(node);
+            if entry.child_holes != UNKNOWN_CHILD_HOLES {
+                assert_eq!(
+                    entry.child_holes,
+                    entry
+                        .children
+                        .iter()
+                        .filter(|child| child.is_none())
+                        .count(),
+                    "child-hole count is inconsistent"
+                );
+            }
             assert_eq!(entry.parent, parent, "parent link is inconsistent");
             for (position, child) in entry.children.iter().enumerate() {
                 if let Some(child) = child {

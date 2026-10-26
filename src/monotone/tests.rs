@@ -673,8 +673,9 @@ fn u32_addressable_radix_heap_round_trips_through_serde_json() {
     let json = serde_json::to_string(&heap).unwrap();
     let mut restored: U32RadixAddressableHeap<&str> = serde_json::from_str(&json).unwrap();
 
-    assert_eq!(restored.key(task), Ok(&30));
-    restored.decrease_key(task, 20).unwrap();
+    assert_eq!(restored.key(task), Err(InvalidHandle::ForeignHeap));
     assert_eq!(restored.pop(), Some((10, "answer mail")));
-    assert_eq!(restored.delete(task), Ok((20, "compile report")));
+    let restored_task = restored.peek().unwrap().0;
+    restored.decrease_key(restored_task, 20).unwrap();
+    assert_eq!(restored.delete(restored_task), Ok((20, "compile report")));
 }

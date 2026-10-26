@@ -431,6 +431,7 @@ struct AddressableRadixHeapCore<K, V> {
     minimum_key: K,
     maximum_key: K,
     current_minimum: Option<usize>,
+    #[cfg_attr(feature = "serde", serde(skip, default = "next_heap_id"))]
     heap_id: u64,
 }
 

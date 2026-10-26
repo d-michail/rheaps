@@ -313,3 +313,15 @@ fn hollow_heap_round_trips_through_serde_json() {
     assert_eq!(restored.delete(task), Ok((1, "compile report".to_owned())));
     assert_eq!(restored.pop_entry(), Some((5, "answer mail".to_owned())));
 }
+
+#[cfg(feature = "serde")]
+#[test]
+fn deserialized_hollow_heap_copy_melds_without_domain_loss() {
+    let mut heap = HollowHeap::new();
+    heap.insert(1, "original");
+    let json = serde_json::to_string(&heap).unwrap();
+    let copy = serde_json::from_str(&json).unwrap();
+    heap.meld(copy);
+    assert_eq!(heap.pop_entry(), Some((1, "original")));
+    assert_eq!(heap.pop_entry(), Some((1, "original")));
+}

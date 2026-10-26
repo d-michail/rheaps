@@ -37,6 +37,7 @@ struct AddressableCore<K, V> {
     entries: Vec<Entry<K, V>>,
     slots: Vec<Slot>,
     free_slots: Vec<usize>,
+    #[cfg_attr(feature = "serde", serde(skip, default = "next_heap_id"))]
     heap_id: u64,
 }
 

@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.16.3 - 2026-10-27
+
+- Fix stale parent links in `LeftistHeap` and `SkewHeap` after deleting or
+  decreasing a non-root entry.
+- Prevent arena loss when melding independently deserialized copies of tree,
+  hollow, reflected, and soft heaps.
+- Give deserialized array-addressable, explicit-tree-addressable, and radix
+  heaps fresh handle identities.
+- Bound `PairingHeap` child-list tombstones with stable geometric compaction,
+  retaining JHeaps-compatible equal-key ordering.
+- Add parent/child invariant coverage for pairing, leftist, and skew heaps and
+  serde collision regressions for every arena-backed heap family.
+
 ## 0.16.2
 
 - Preserve sibling order when `PairingHeap::decrease_key` or

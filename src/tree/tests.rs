@@ -1319,6 +1319,37 @@ fn reflected_pairing_heap_meld_consumes_donor_and_preserves_handles() {
     exercise_meld!(ReflectedPairingHeap);
 }
 
+#[test]
+fn leftist_and_skew_decreases_do_not_create_parent_cycles() {
+    macro_rules! exercise {
+        ($heap:ident) => {{
+            let mut heap = $heap::new();
+            let first = heap.insert(0, 0);
+            let second = heap.insert(2, 1);
+            heap.decrease_key(second, -1).unwrap();
+            heap.decrease_key(first, -2).unwrap();
+            heap.assert_invariants();
+            assert_eq!(heap.pop_entry(), Some((-2, 0)));
+            assert_eq!(heap.pop_entry(), Some((-1, 1)));
+        }};
+    }
+
+    exercise!(LeftistHeap);
+    exercise!(SkewHeap);
+}
+
+#[test]
+fn pairing_heap_compacts_cut_child_slots() {
+    let mut heap = PairingHeap::new();
+    heap.insert(0, ());
+    for _ in 0..10_000 {
+        let child = heap.insert(1, ());
+        assert_eq!(heap.delete(child), Ok((1, ())));
+    }
+    heap.assert_invariants();
+    assert!(heap.root_child_slots() <= 1);
+}
+
 macro_rules! exercise_invariants {
     ($heap:ident) => {{
         let mut heap = $heap::<i32, usize>::new();
@@ -1359,6 +1390,21 @@ macro_rules! exercise_invariants {
 #[test]
 fn fibonacci_heap_maintains_node_forest_invariants() {
     exercise_invariants!(FibonacciHeap);
+}
+
+#[test]
+fn pairing_heap_maintains_node_forest_invariants() {
+    exercise_invariants!(PairingHeap);
+}
+
+#[test]
+fn leftist_heap_maintains_node_forest_invariants() {
+    exercise_invariants!(LeftistHeap);
+}
+
+#[test]
+fn skew_heap_maintains_node_forest_invariants() {
+    exercise_invariants!(SkewHeap);
 }
 
 #[test]
@@ -1425,6 +1471,48 @@ fn pairing_heap_round_trips_through_serde_json() {
 
 #[cfg(feature = "serde")]
 #[test]
+fn deserialized_tree_and_reflected_copies_meld_without_domain_loss() {
+    macro_rules! exercise_tree {
+        ($heap:ident) => {{
+            let mut heap = $heap::new();
+            heap.insert(2, 2);
+            heap.insert(1, 1);
+            let json = serde_json::to_string(&heap).unwrap();
+            let copy = serde_json::from_str(&json).unwrap();
+            heap.meld(copy);
+            let mut entries = core::iter::from_fn(|| heap.pop_entry()).collect::<Vec<_>>();
+            entries.sort_unstable();
+            assert_eq!(entries, vec![(1, 1), (1, 1), (2, 2), (2, 2)]);
+        }};
+    }
+
+    exercise_tree!(PairingHeap);
+    exercise_tree!(PurePairingHeap);
+    exercise_tree!(RankPairingHeap);
+    exercise_tree!(CostlessMeldPairingHeap);
+    exercise_tree!(FibonacciHeap);
+    exercise_tree!(SimpleFibonacciHeap);
+    exercise_tree!(StrictFibonacciHeap);
+    exercise_tree!(LeftistHeap);
+    exercise_tree!(SkewHeap);
+    exercise_tree!(ReflectedPairingHeap);
+    exercise_tree!(ReflectedFibonacciHeap);
+}
+
+#[cfg(feature = "serde")]
+#[test]
+fn deserialized_soft_heap_copy_melds_without_domain_loss() {
+    let mut heap = BinaryTreeSoftAddressableHeap::new(0.1).unwrap();
+    heap.insert(1, "original");
+    let json = serde_json::to_string(&heap).unwrap();
+    let copy = serde_json::from_str(&json).unwrap();
+    heap.meld(copy).unwrap();
+    assert_eq!(heap.pop_entry(), Some((1, "original")));
+    assert_eq!(heap.pop_entry(), Some((1, "original")));
+}
+
+#[cfg(feature = "serde")]
+#[test]
 fn fibonacci_heap_round_trips_through_serde_json() {
     let mut heap = FibonacciHeap::<i32>::new();
     heap.push(3);
@@ -1450,8 +1538,22 @@ fn binary_tree_addressable_heap_round_trips_through_serde_json() {
     let json = serde_json::to_string(&heap).unwrap();
     let mut restored: BinaryTreeAddressableHeap<i32, &str> = serde_json::from_str(&json).unwrap();
 
-    assert_eq!(restored.key(task), Ok(&4));
-    assert_eq!(restored.value(task), Ok(&"clean up"));
+    assert_eq!(restored.key(task), Err(InvalidHandle::ForeignHeap));
+    assert_eq!(restored.pop_entry(), Some((1, "reply to mail")));
+    assert_eq!(restored.pop_entry(), Some((4, "clean up")));
+}
+
+#[cfg(feature = "serde")]
+#[test]
+fn dary_tree_addressable_heap_deserialization_uses_fresh_handle_identity() {
+    let mut heap = DaryTreeAddressableHeap::new(4).unwrap();
+    let task = heap.insert(4, "clean up");
+    heap.insert(1, "reply to mail");
+
+    let json = serde_json::to_string(&heap).unwrap();
+    let mut restored: DaryTreeAddressableHeap<i32, &str> = serde_json::from_str(&json).unwrap();
+
+    assert_eq!(restored.key(task), Err(InvalidHandle::ForeignHeap));
     assert_eq!(restored.pop_entry(), Some((1, "reply to mail")));
     assert_eq!(restored.pop_entry(), Some((4, "clean up")));
 }

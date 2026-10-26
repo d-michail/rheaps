@@ -1253,6 +1253,7 @@ mod serde_roundtrip {
     use super::{
         BinaryArrayAddressableHeap, BinaryArrayHeap, BinaryArrayIntegerValueHeap, DaryArrayHeap,
     };
+    use crate::error::InvalidHandle;
     use crate::{AddressableHeap, Heap};
 
     #[test]
@@ -1293,7 +1294,7 @@ mod serde_roundtrip {
     }
 
     #[test]
-    fn binary_array_addressable_heap_round_trips_and_keeps_handles_usable() {
+    fn binary_array_addressable_heap_round_trips_with_fresh_handle_identity() {
         let mut heap = BinaryArrayAddressableHeap::new();
         let task = heap.insert(10, "compile report");
         heap.insert(5, "answer mail");
@@ -1302,8 +1303,12 @@ mod serde_roundtrip {
         let mut restored: BinaryArrayAddressableHeap<i32, &str> =
             serde_json::from_str(&json).unwrap();
 
-        assert_eq!(restored.key(task), Ok(&10));
-        assert_eq!(restored.delete(task), Ok((10, "compile report")));
+        assert_eq!(restored.key(task), Err(InvalidHandle::ForeignHeap));
+        let restored_task = restored
+            .handles()
+            .find(|handle| restored.key(*handle) == Ok(&10))
+            .unwrap();
+        assert_eq!(restored.delete(restored_task), Ok((10, "compile report")));
         assert_eq!(restored.pop(), Some((5, "answer mail")));
     }
 

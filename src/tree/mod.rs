@@ -3,7 +3,8 @@
 //! This module provides explicit binary and d-ary addressable heaps,
 //! Kaplan-Zwick soft heaps, pairing and Fibonacci heap families, and reflected
 //! double-ended heaps. The meldable heaps take their donor by value, so it is
-//! moved into the meld call; donor handles remain valid through the receiver.
+//! moved into the meld call; donor handles remain valid through the receiver
+//! unless independently deserialized copies duplicated their identities.
 
 mod binary_tree_addressable_heap;
 mod binary_tree_soft_addressable_heap;

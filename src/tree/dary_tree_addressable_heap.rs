@@ -66,6 +66,7 @@ pub struct DaryTreeAddressableHeap<K, V = ()> {
     entries: Vec<EntrySlot<K, V>>,
     free_entries: Vec<usize>,
     positions: Vec<Position>,
+    #[cfg_attr(feature = "serde", serde(skip, default = "next_domain_id"))]
     domain: u64,
 }
 

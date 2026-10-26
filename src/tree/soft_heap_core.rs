@@ -381,7 +381,18 @@ impl<K: Ord + Clone, V> SoftHeapCore<K, V> {
         self.len = 0;
     }
 
-    pub(crate) fn meld_from(&mut self, other: Self) {
+    pub(crate) fn meld_from(&mut self, mut other: Self) {
+        if self
+            .item_arenas
+            .keys()
+            .any(|domain| other.item_arenas.contains_key(domain))
+        {
+            while let Some(item) = other.pop_item() {
+                let (key, value) = item.into_pair();
+                self.insert(key, value);
+            }
+            return;
+        }
         self.item_arenas.extend(other.item_arenas);
         self.node_arenas.extend(other.node_arenas);
         self.merge_roots(other.roots);

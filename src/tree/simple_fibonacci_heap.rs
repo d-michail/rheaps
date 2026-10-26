@@ -255,7 +255,13 @@ impl<K: Ord> SimpleFibonacciHeap<K, ()> {
 
 impl<K: Ord, V> SimpleFibonacciHeap<K, V> {
     /// Melds `other` into this heap, consuming the donor.
-    pub fn meld(&mut self, other: Self) {
+    pub fn meld(&mut self, mut other: Self) {
+        if self.core.domains_overlap(&other.core) {
+            while let Some((key, value)) = other.pop_entry() {
+                self.insert(key, value);
+            }
+            return;
+        }
         let other_root = other.core.root;
         let other_len = other.core.len;
         self.core.take_arenas_from(other.core);

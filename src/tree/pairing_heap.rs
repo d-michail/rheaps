@@ -130,6 +130,18 @@ impl<K: Ord, V> PairingHeap<K, V> {
         self.core.clear();
     }
 
+    #[cfg(test)]
+    pub(crate) fn assert_invariants(&self) {
+        self.core.assert_heap_forest(self.core.root);
+    }
+
+    #[cfg(test)]
+    pub(crate) fn root_child_slots(&self) -> usize {
+        self.core
+            .root
+            .map_or(0, |root| self.core.node(root).children.len())
+    }
+
     fn cut_from_parent(&mut self, node: NodeRef) {
         let parent = self
             .core
@@ -137,11 +149,11 @@ impl<K: Ord, V> PairingHeap<K, V> {
             .expect("non-root tree node must have a parent");
         let position = self.core.position(node);
         // Leave a tombstone so the surviving siblings retain their link order.
-        // The slot is reclaimed when the parent's children are combined.
+        // Stable geometric compaction reclaims it once the list is sparse.
         let removed = self.core.take_child(parent, position);
         debug_assert_eq!(removed, Some(node));
-        self.core.node_mut(node).parent = None;
         self.core.node_mut(node).position = 0;
+        self.core.compact_children_if_sparse(parent);
     }
 
     fn combine(&mut self, children: Vec<NodeRef>) -> Option<NodeRef> {
@@ -192,8 +204,18 @@ impl<K: Ord> PairingHeap<K, ()> {
 }
 
 impl<K: Ord, V> PairingHeap<K, V> {
+    pub(crate) fn has_domain_overlap(&self, other: &Self) -> bool {
+        self.core.domains_overlap(&other.core)
+    }
+
     /// Melds `other` into this heap, consuming the donor.
-    pub fn meld(&mut self, other: Self) {
+    pub fn meld(&mut self, mut other: Self) {
+        if self.core.domains_overlap(&other.core) {
+            while let Some((key, value)) = other.pop_entry() {
+                self.insert(key, value);
+            }
+            return;
+        }
         let other_root = other.core.root;
         let other_len = other.core.len;
         self.core.take_arenas_from(other.core);

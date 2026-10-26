@@ -34,6 +34,13 @@ trait ReflectedHeapBackend<K: Ord> {
 
     /// Constructs the paired inner heaps.
     fn new() -> (Self::Min, Self::Max);
+
+    fn domains_overlap(
+        left_min: &Self::Min,
+        left_max: &Self::Max,
+        right_min: &Self::Min,
+        right_max: &Self::Max,
+    ) -> bool;
 }
 
 /// Uses Fibonacci heaps in a reflected heap.
@@ -48,6 +55,15 @@ impl<K: Ord> ReflectedHeapBackend<K> for FibonacciReflectedBackend {
     fn new() -> (Self::Min, Self::Max) {
         (FibonacciHeap::new(), FibonacciHeap::new())
     }
+
+    fn domains_overlap(
+        left_min: &Self::Min,
+        left_max: &Self::Max,
+        right_min: &Self::Min,
+        right_max: &Self::Max,
+    ) -> bool {
+        left_min.has_domain_overlap(right_min) || left_max.has_domain_overlap(right_max)
+    }
 }
 
 /// Uses pairing heaps in a reflected heap.
@@ -61,6 +77,15 @@ impl<K: Ord> ReflectedHeapBackend<K> for PairingReflectedBackend {
 
     fn new() -> (Self::Min, Self::Max) {
         (PairingHeap::new(), PairingHeap::new())
+    }
+
+    fn domains_overlap(
+        left_min: &Self::Min,
+        left_max: &Self::Max,
+        right_min: &Self::Min,
+        right_max: &Self::Max,
+    ) -> bool {
+        left_min.has_domain_overlap(right_min) || left_max.has_domain_overlap(right_max)
     }
 }
 
@@ -592,7 +617,23 @@ where
         >,
 {
     /// Melds `other` into this heap, consuming the donor.
-    pub fn meld(&mut self, other: Self) {
+    pub fn meld(&mut self, mut other: Self) {
+        let outer_overlap = self
+            .arenas
+            .keys()
+            .any(|domain| other.arenas.contains_key(domain));
+        let inner_overlap = B::domains_overlap(
+            &self.min_heap,
+            &self.max_heap,
+            &other.min_heap,
+            &other.max_heap,
+        );
+        if outer_overlap || inner_overlap {
+            while let Some((key, value)) = other.pop_entry() {
+                self.insert(key, value);
+            }
+            return;
+        }
         self.min_heap.meld(other.min_heap).unwrap();
         self.max_heap.meld(other.max_heap).unwrap();
         self.arenas.extend(other.arenas);

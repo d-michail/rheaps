@@ -127,6 +127,11 @@ impl<K: Ord, V> SkewHeap<K, V> {
         self.core.clear();
     }
 
+    #[cfg(test)]
+    pub(crate) fn assert_invariants(&self) {
+        self.core.assert_heap_forest(self.core.root);
+    }
+
     fn detach_and_reinsert(&mut self, node: NodeRef) {
         self.detach_node(node);
         self.core.root = self.union(self.core.root, Some(node));
@@ -138,7 +143,8 @@ impl<K: Ord, V> SkewHeap<K, V> {
             .parent(node)
             .expect("non-root tree node must have a parent");
         let position = self.core.position(node);
-        self.core.set_child(parent, position, None);
+        let removed = self.core.take_child(parent, position);
+        debug_assert_eq!(removed, Some(node));
         let left = self.core.take_child(node, 0);
         let right = self.core.take_child(node, 1);
         let replacement = self.union(left, right);
@@ -184,7 +190,13 @@ impl<K: Ord> SkewHeap<K, ()> {
 
 impl<K: Ord, V> SkewHeap<K, V> {
     /// Melds `other` into this heap, consuming the donor.
-    pub fn meld(&mut self, other: Self) {
+    pub fn meld(&mut self, mut other: Self) {
+        if self.core.domains_overlap(&other.core) {
+            while let Some((key, value)) = other.pop_entry() {
+                self.insert(key, value);
+            }
+            return;
+        }
         let other_root = other.core.root;
         let other_len = other.core.len;
         self.core.take_arenas_from(other.core);

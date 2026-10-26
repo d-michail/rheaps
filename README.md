@@ -23,7 +23,9 @@ algorithm.
 - Queries borrow their result; removals return owned values.
 - Empty-heap operations return `None`.
 - Addressable heaps return checked opaque handles.
-- Meldable heaps preserve handles from the donor heap after a successful meld.
+- Meldable heaps preserve handles from the donor heap after a successful meld,
+  except when independently deserialized copies contain indistinguishable
+  serialized handle identities.
 - Constructors validate parameters such as d-ary degrees, soft-heap error
   rates, and radix-heap key bounds.
 
@@ -83,7 +85,11 @@ cargo test --all-targets
 
 - `serde` — adds `Serialize`/`Deserialize` implementations for every heap,
   handle, and key type in the crate, so a populated heap can be persisted and
-  reloaded. Enable it with:
+  reloaded. A deserialized heap is a distinct heap; handles obtained from the
+  original instance should not be reused with it. When independently
+  deserialized copies are melded, all entries are retained, but duplicated
+  serialized handles cannot distinguish the two copies. Enable the feature
+  with:
 
   ```toml
   [dependencies]

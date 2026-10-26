@@ -622,8 +622,19 @@ impl<K: Ord, V> HollowHeap<K, V> {
     /// Melds `other` into this heap, consuming the donor.
     ///
     /// All donor handles become valid handles of this heap without moving
-    /// their entries.
-    pub fn meld(&mut self, other: Self) {
+    /// their entries, unless independently deserialized copies duplicated
+    /// their serialized identities.
+    pub fn meld(&mut self, mut other: Self) {
+        if self
+            .arenas
+            .keys()
+            .any(|domain| other.arenas.contains_key(domain))
+        {
+            while let Some((key, value)) = other.pop_entry() {
+                self.insert(key, value);
+            }
+            return;
+        }
         let other_root = other.root;
         self.arenas.extend(other.arenas);
         self.root = self.link_options(self.root, other_root);

@@ -130,7 +130,8 @@
 //! # Optional features
 //!
 //! - `serde` - implements `Serialize`/`Deserialize` for every heap, handle,
-//!   and key type in the crate.
+//!   and key type in the crate. A deserialized heap is a distinct instance;
+//!   handles from the original heap are not portable to it.
 
 pub mod array;
 pub mod dag;
